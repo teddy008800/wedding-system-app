@@ -1,7 +1,5 @@
 <div class="min-h-screen text-slate-900 dark:text-slate-100">
-  <audio #nasheed preload="none" loop>
-    <source *ngIf="nasheedUrl" [src]="nasheedUrl" type="audio/mpeg" />
-  </audio>
+  <audio #nasheed preload="none" loop [src]="nasheedUrl"></audio>
 
   <div class="relative overflow-hidden">
     <div class="hero-glow"></div>

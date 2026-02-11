@@ -138,7 +138,9 @@ export class AdminComponent implements OnInit, OnDestroy {
   private readonly supabaseUrl = 'https://sksxlvhyjkimyiiaxwtz.supabase.co';
   private readonly supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrc3hsdmh5amtpbXlpaWF4d3R6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2OTQ1NTgsImV4cCI6MjA4NjI3MDU1OH0.wLYx_vlp6jNaW1jN82Ee9dL864kULIUkEc0c7Ruf2ig';
   private inactivityTimer: number | null = null;
-  private readonly inactivityTimeoutMs = 30_000;
+  private warningTimer: number | null = null;
+  private readonly inactivityTimeoutMs = 300_000;
+  private readonly inactivityWarningLeadMs = 30_000;
   private readonly activityEvents: Array<keyof WindowEventMap> = ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'];
   private activityListenersAttached = false;
 
@@ -161,6 +163,7 @@ export class AdminComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.detachActivityListeners();
     this.clearInactivityTimer();
+    this.clearWarningTimer();
   }
 
   protected async handleLogin(): Promise<void> {
@@ -202,6 +205,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     this.weddingRows = [];
     this.detachActivityListeners();
     this.clearInactivityTimer();
+    this.clearWarningTimer();
   }
 
   protected async refreshData(): Promise<void> {
@@ -1151,6 +1155,14 @@ export class AdminComponent implements OnInit, OnDestroy {
 
   private resetInactivityTimer(): void {
     this.clearInactivityTimer();
+    this.clearWarningTimer();
+    const warningDelay = Math.max(0, this.inactivityTimeoutMs - this.inactivityWarningLeadMs);
+    this.warningTimer = window.setTimeout(() => {
+      if (!this.isLoggedIn) {
+        return;
+      }
+      this.showToast('Session will expire in 30 seconds.', 'error');
+    }, warningDelay);
     this.inactivityTimer = window.setTimeout(() => {
       if (!this.isLoggedIn) {
         return;
@@ -1164,6 +1176,13 @@ export class AdminComponent implements OnInit, OnDestroy {
     if (this.inactivityTimer) {
       window.clearTimeout(this.inactivityTimer);
       this.inactivityTimer = null;
+    }
+  }
+
+  private clearWarningTimer(): void {
+    if (this.warningTimer) {
+      window.clearTimeout(this.warningTimer);
+      this.warningTimer = null;
     }
   }
 
@@ -1222,6 +1241,12 @@ export class AdminComponent implements OnInit, OnDestroy {
     const validPaths = paths
       .map((path) => String(path || '').trim().replace(/^\/+/, ''))
       .filter((path) => path && !path.startsWith('http://') && !path.startsWith('https://'));
+
+    // First try server-side delete (service role) so storage cleanup works even when anon delete is restricted.
+    const serverDeleted = await this.deleteViaServerApi(bucket, validPaths);
+    if (serverDeleted) {
+      return true;
+    }
 
     for (const path of validPaths) {
       const { data, error } = await this.supabaseClient.storage.from(bucket).remove([path]);
@@ -1292,6 +1317,35 @@ export class AdminComponent implements OnInit, OnDestroy {
     const { data, error } = await this.supabaseClient.storage.from(bucket).remove(targetPaths);
     console.info(`[${bucket}] force remove targets`, { targetPaths, data, error });
     return !error;
+  }
+
+  private async deleteViaServerApi(bucket: string, paths: string[]): Promise<boolean> {
+    if (!this.supabaseClient || !paths.length) {
+      return false;
+    }
+    try {
+      const { data: sessionData } = await this.supabaseClient.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) {
+        return false;
+      }
+
+      const response = await fetch('/api/storage-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ bucket, paths })
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      console.info(`[${bucket}] server storage delete`, { paths, status: response.status, payload });
+      return response.ok;
+    } catch (error) {
+      console.warn(`[${bucket}] server storage delete failed`, { paths, error });
+      return false;
+    }
   }
 
   private async storageObjectExists(bucket: string, path: string): Promise<boolean> {

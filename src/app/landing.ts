@@ -40,8 +40,8 @@ export class LandingComponent implements OnInit, OnDestroy {
 
   protected title = 'WeddingAqilSyafiqah';
   protected couple = {
-    groom: 'Aqil',
-    bride: 'Syafiqah',
+    groom: 'Groom Name (Aqil)',
+    bride: 'Bride Name (Syafiqah)',
     date: '12 April 2026',
     location: 'Masjid Negara, Kuala Lumpur'
   };
@@ -84,6 +84,20 @@ export class LandingComponent implements OnInit, OnDestroy {
       message: 'So excited for your big day!',
       likes: 5,
       createdAt: new Date().toISOString()
+    },
+    {
+      id: 'local-4',
+      name: 'Farhan',
+      message: 'Mabruk! Semoga dipermudahkan semua urusan.',
+      likes: 10,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'local-5',
+      name: 'Syaza',
+      message: 'Doa terbaik untuk kedua mempelai.',
+      likes: 7,
+      createdAt: new Date().toISOString()
     }
   ];
   protected newWish = {
@@ -98,7 +112,32 @@ export class LandingComponent implements OnInit, OnDestroy {
   protected wishPopup = '';
   protected wishCooldown = 0;
   protected isStandaloneRoute = false;
-  protected galleryItems: GalleryItem[] = [];
+  protected galleryItems: GalleryItem[] = [
+    {
+      id: 'local-g-1',
+      title: 'Pre-Wedding Moment',
+      imageUrl: 'https://picsum.photos/seed/wedding-1/1200/900',
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'local-g-2',
+      title: 'Family Blessing',
+      imageUrl: 'https://picsum.photos/seed/wedding-2/1200/900',
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'local-g-3',
+      title: 'Engagement Day',
+      imageUrl: 'https://picsum.photos/seed/wedding-3/1200/900',
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'local-g-4',
+      title: 'Special Memory',
+      imageUrl: 'https://picsum.photos/seed/wedding-4/1200/900',
+      createdAt: new Date().toISOString()
+    }
+  ];
 
   protected rsvp = {
     name: '',
@@ -118,6 +157,69 @@ export class LandingComponent implements OnInit, OnDestroy {
   private readonly supabaseUrl = 'https://sksxlvhyjkimyiiaxwtz.supabase.co';
   private readonly supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrc3hsdmh5amtpbXlpaWF4d3R6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2OTQ1NTgsImV4cCI6MjA4NjI3MDU1OH0.wLYx_vlp6jNaW1jN82Ee9dL864kULIUkEc0c7Ruf2ig';
   private readonly defaultWeddingDate = new Date('2026-04-12T00:00:00');
+  private readonly defaultWishes: Wish[] = [
+    {
+      id: 'local-1',
+      name: 'Alya',
+      message: 'Semoga bahagia hingga Jannah!',
+      likes: 12,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'local-2',
+      name: 'Haziq',
+      message: 'Barakallah, beautiful celebration.',
+      likes: 8,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'local-3',
+      name: 'Nadia',
+      message: 'So excited for your big day!',
+      likes: 5,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'local-4',
+      name: 'Farhan',
+      message: 'Mabruk! Semoga dipermudahkan semua urusan.',
+      likes: 10,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'local-5',
+      name: 'Syaza',
+      message: 'Doa terbaik untuk kedua mempelai.',
+      likes: 7,
+      createdAt: new Date().toISOString()
+    }
+  ];
+  private readonly defaultGalleryItems: GalleryItem[] = [
+    {
+      id: 'local-g-1',
+      title: 'Pre-Wedding Moment',
+      imageUrl: 'https://picsum.photos/seed/wedding-1/1200/900',
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'local-g-2',
+      title: 'Family Blessing',
+      imageUrl: 'https://picsum.photos/seed/wedding-2/1200/900',
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'local-g-3',
+      title: 'Engagement Day',
+      imageUrl: 'https://picsum.photos/seed/wedding-3/1200/900',
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'local-g-4',
+      title: 'Special Memory',
+      imageUrl: 'https://picsum.photos/seed/wedding-4/1200/900',
+      createdAt: new Date().toISOString()
+    }
+  ];
   private currentSlug = '';
   private currentWeddingId: string | null = null;
   private readonly cycleIntervalMs = 4500;
@@ -131,7 +233,7 @@ export class LandingComponent implements OnInit, OnDestroy {
   private countdownTargetMs: number | null = null;
   private routerSub?: { unsubscribe: () => void };
   private autoplayListenersAttached = false;
-  private readonly autoplayEvents: Array<keyof WindowEventMap> = ['click', 'keydown'];
+  private readonly autoplayEvents: Array<keyof WindowEventMap> = ['click', 'touchend', 'keydown'];
   private readonly defaultWeddingState = {
     couple: {
       groom: this.couple.groom,
@@ -227,6 +329,22 @@ export class LandingComponent implements OnInit, OnDestroy {
       wedding_id: this.currentWeddingId
     };
 
+    if (!this.currentSlug) {
+      const wish: Wish = {
+        id: `local-${Date.now()}`,
+        name: payload.name,
+        message: payload.message,
+        likes: 0,
+        createdAt: new Date().toISOString()
+      };
+      this.wishes = [wish, ...this.wishes];
+      this.newWish = { name: '', message: '' };
+      this.resetCycle();
+      this.showWishPopup('Ucapan dihantar! (Demo)');
+      this.startWishCooldown();
+      return;
+    }
+
     if (!this.supabaseClient) {
       const wish: Wish = {
         id: `local-${Date.now()}`,
@@ -280,7 +398,7 @@ export class LandingComponent implements OnInit, OnDestroy {
       this.heartBursts = this.heartBursts.filter((heart) => heart.id !== id);
     }, 1300);
 
-    if (!this.supabaseClient) {
+    if (!this.supabaseClient || !this.currentSlug || wish.id.startsWith('local-')) {
       this.likedWishIds.add(wish.id);
       wish.likes += 1;
       this.pulseLike(wish.id);
@@ -303,6 +421,13 @@ export class LandingComponent implements OnInit, OnDestroy {
 
   protected async submitRsvp(): Promise<void> {
     this.rsvpResult = '';
+
+    if (!this.currentSlug) {
+      this.rsvpResult = 'Demo submit success.';
+      this.rsvp = { name: '', email: '', guests: 1, attendance: 'yes', message: '' };
+      this.showRsvpPopup('RSVP berjaya dihantar! (Demo)');
+      return;
+    }
 
     if (!this.supabaseClient) {
       this.rsvpResult = 'Supabase is not configured yet. Please add your URL and anon key.';
@@ -475,6 +600,11 @@ export class LandingComponent implements OnInit, OnDestroy {
     if (!this.supabaseClient) {
       return;
     }
+    if (!this.currentSlug && !this.currentWeddingId) {
+      this.wishes = this.defaultWishes.map((item) => ({ ...item }));
+      this.resetCycle();
+      return;
+    }
     if (this.currentSlug && !this.currentWeddingId) {
       this.wishes = [];
       return;
@@ -540,6 +670,10 @@ export class LandingComponent implements OnInit, OnDestroy {
 
   private async loadGallery(): Promise<void> {
     if (!this.supabaseClient) {
+      return;
+    }
+    if (!this.currentSlug && !this.currentWeddingId) {
+      this.galleryItems = this.defaultGalleryItems.map((item) => ({ ...item }));
       return;
     }
     if (this.currentSlug && !this.currentWeddingId) {
@@ -624,19 +758,10 @@ export class LandingComponent implements OnInit, OnDestroy {
       .maybeSingle();
       if (nasheed?.audio_url) {
         this.nasheedUrl = nasheed.audio_url;
+        this.syncAudioSource();
       }
     }
-    console.info('[Landing] Wedding data applied', {
-      slug,
-      weddingId: this.currentWeddingId,
-      couple: this.couple,
-      weddingTag: this.weddingTag,
-      phoneNumber: this.phoneNumber,
-      googleMapUrl: this.googleMapUrl,
-      dressCode: this.dressCode,
-      weddingTentative: this.weddingTentative,
-      nasheedUrl: this.nasheedUrl
-    });
+    
     this.refreshSlugScopedData();
   }
 
@@ -653,6 +778,7 @@ export class LandingComponent implements OnInit, OnDestroy {
     this.dressCode = this.defaultWeddingState.dressCode;
     this.weddingTentative = [...this.defaultWeddingState.weddingTentative];
     this.nasheedUrl = this.defaultWeddingState.nasheedUrl;
+    this.syncAudioSource();
     this.audioEnabled = false;
     this.audioPlaying = false;
     this.year = new Date().getFullYear();
@@ -688,6 +814,16 @@ export class LandingComponent implements OnInit, OnDestroy {
       this.audioPlaying = false;
       return false;
     });
+  }
+
+  private syncAudioSource(): void {
+    const audio = this.nasheed?.nativeElement;
+    if (!audio) {
+      return;
+    }
+    audio.pause();
+    audio.currentTime = 0;
+    audio.load();
   }
 
   private readonly onAutoplayInteraction = (): void => {
