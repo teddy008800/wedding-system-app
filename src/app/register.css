@@ -5,6 +5,14 @@
   color: #0b1220;
 }
 
+.register-page.is-busy button,
+.register-page.is-busy a,
+.register-page.is-busy input,
+.register-page.is-busy select,
+.register-page.is-busy textarea {
+  pointer-events: none;
+}
+
 .register-shell {
   max-width: 980px;
   margin: 0 auto;

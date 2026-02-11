@@ -1,4 +1,4 @@
-<div class="admin-page">
+<div class="admin-page" [class.is-busy]="actionLoading">
   <div class="admin-shell">
     <div class="admin-header">
       <div>
@@ -6,8 +6,8 @@
         <h1 class="admin-title">Wedding Management</h1>
       </div>
       <div class="admin-actions" *ngIf="isLoggedIn">
-        <button class="btn-outline" type="button" (click)="refreshData()">Refresh</button>
-        <button class="btn-primary" type="button" (click)="handleLogout()">Logout</button>
+        <button class="btn-outline" type="button" (click)="refreshData()" [disabled]="actionLoading">Refresh</button>
+        <button class="btn-primary" type="button" (click)="handleLogout()" [disabled]="actionLoading">Logout</button>
       </div>
     </div>
 
@@ -19,7 +19,7 @@
         <input class="input" type="email" name="adminEmail" [(ngModel)]="login.email" required placeholder="admin@email.com" />
         <label class="label">Password</label>
         <input class="input" type="password" name="adminPassword" [(ngModel)]="login.password" required placeholder="password" />
-        <button class="btn-primary" type="submit" [disabled]="isLoading">
+        <button class="btn-primary" type="submit" [disabled]="isLoading || actionLoading">
           {{ isLoading ? 'Logging in...' : 'Login' }}
         </button>
         <div class="admin-error" *ngIf="loginError">{{ loginError }}</div>
@@ -535,9 +535,16 @@
     <div class="text-lg font-semibold text-slate-900">Confirm Action</div>
     <p class="mt-2 text-sm text-slate-600">{{ confirmModal.message }}</p>
     <div class="mt-5 flex justify-end gap-2">
-      <button class="btn-outline text-slate-900" type="button" (click)="closeConfirm()">Cancel</button>
-      <button class="btn-primary" type="button" (click)="confirmAction()">Confirm</button>
+      <button class="btn-outline text-slate-900" type="button" (click)="closeConfirm()" [disabled]="actionLoading">Cancel</button>
+      <button class="btn-primary" type="button" (click)="confirmAction()" [disabled]="actionLoading">Confirm</button>
     </div>
+  </div>
+</div>
+
+<div class="fixed inset-0 z-[80] grid place-items-center bg-slate-900/45 backdrop-blur-sm" *ngIf="actionLoading">
+  <div class="w-[min(90vw,320px)] rounded-2xl border border-rose-200/70 bg-white px-6 py-4 text-center shadow-xl">
+    <div class="h-6 w-6 mx-auto mb-2 animate-spin rounded-full border-2 border-rose-200 border-t-rose-500"></div>
+    <div class="text-sm font-semibold text-slate-900">{{ actionLoadingText }}</div>
   </div>
 </div>
 

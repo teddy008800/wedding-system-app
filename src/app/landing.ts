@@ -149,6 +149,8 @@ export class LandingComponent implements OnInit, OnDestroy {
   protected rsvpLoading = false;
   protected rsvpResult = '';
   protected rsvpPopup = '';
+  protected actionLoading = false;
+  protected actionLoadingText = 'Processing...';
 
   private heartId = 0;
   private scrollResumeId: number | null = null;
@@ -316,6 +318,11 @@ export class LandingComponent implements OnInit, OnDestroy {
   }
 
   protected async submitWish(): Promise<void> {
+    if (this.actionLoading) {
+      return;
+    }
+    this.actionLoadingText = 'Submitting wish...';
+    await this.runWithActionLock(async () => {
     if (this.wishCooldown > 0) {
       return;
     }
@@ -381,9 +388,15 @@ export class LandingComponent implements OnInit, OnDestroy {
       this.showWishPopup('Ucapan dihantar!');
       this.startWishCooldown();
     }
+    });
   }
 
   protected async likeWish(wish: Wish, event: MouseEvent): Promise<void> {
+    if (this.actionLoading) {
+      return;
+    }
+    this.actionLoadingText = 'Processing like...';
+    await this.runWithActionLock(async () => {
     if (this.likedWishIds.has(wish.id)) {
       return;
     }
@@ -417,9 +430,15 @@ export class LandingComponent implements OnInit, OnDestroy {
     this.likedWishIds.add(wish.id);
     wish.likes += 1;
     this.pulseLike(wish.id);
+    });
   }
 
   protected async submitRsvp(): Promise<void> {
+    if (this.actionLoading) {
+      return;
+    }
+    this.actionLoadingText = 'Submitting RSVP...';
+    await this.runWithActionLock(async () => {
     this.rsvpResult = '';
 
     if (!this.currentSlug) {
@@ -459,6 +478,7 @@ export class LandingComponent implements OnInit, OnDestroy {
     } finally {
       this.rsvpLoading = false;
     }
+    });
   }
 
   @HostListener('window:scroll')
@@ -1058,5 +1078,17 @@ export class LandingComponent implements OnInit, OnDestroy {
         this.rsvpPopup = '';
       }
     }, 2600);
+  }
+
+  private async runWithActionLock(action: () => Promise<void>): Promise<void> {
+    if (this.actionLoading) {
+      return;
+    }
+    this.actionLoading = true;
+    try {
+      await action();
+    } finally {
+      this.actionLoading = false;
+    }
   }
 }

@@ -1,0 +1,7 @@
+.is-busy button,
+.is-busy a,
+.is-busy input,
+.is-busy select,
+.is-busy textarea {
+  pointer-events: none;
+}

@@ -107,6 +107,8 @@ export class AdminComponent implements OnInit, OnDestroy {
     message: '',
     type: '' as 'success' | 'error' | ''
   };
+  protected actionLoading = false;
+  protected actionLoadingText = 'Processing...';
   protected galleryUpload = {
     title: '',
     weddingId: '',
@@ -167,52 +169,70 @@ export class AdminComponent implements OnInit, OnDestroy {
   }
 
   protected async handleLogin(): Promise<void> {
+    if (this.actionLoading) {
+      return;
+    }
     if (!this.supabaseClient) {
       return;
     }
-    this.loginError = '';
-    this.isLoading = true;
-    try {
-      const { data, error } = await this.supabaseClient.auth.signInWithPassword({
-        email: this.login.email.trim(),
-        password: this.login.password
-      });
-      if (error || !data?.session) {
-        throw error ?? new Error('Login failed.');
+    await this.runWithActionLock('Logging in...', async () => {
+      this.loginError = '';
+      this.isLoading = true;
+      try {
+        const { data, error } = await this.supabaseClient.auth.signInWithPassword({
+          email: this.login.email.trim(),
+          password: this.login.password
+        });
+        if (error || !data?.session) {
+          throw error ?? new Error('Login failed.');
+        }
+        this.isLoggedIn = true;
+        this.login = { email: '', password: '' };
+        await this.logAdminLogin(data.session.user.email ?? 'unknown');
+        await this.loadAll();
+        this.startInactivityTracking();
+      } catch (error) {
+        this.loginError = 'Login gagal. Semak email dan kata laluan.';
+      } finally {
+        this.isLoading = false;
       }
-      this.isLoggedIn = true;
-      this.login = { email: '', password: '' };
-      await this.logAdminLogin(data.session.user.email ?? 'unknown');
-      await this.loadAll();
-      this.startInactivityTracking();
-    } catch (error) {
-      this.loginError = 'Login gagal. Semak email dan kata laluan.';
-    } finally {
-      this.isLoading = false;
-    }
+    });
   }
 
   protected async handleLogout(): Promise<void> {
+    if (this.actionLoading) {
+      return;
+    }
     if (!this.supabaseClient) {
       return;
     }
-    await this.supabaseClient.auth.signOut();
-    this.isLoggedIn = false;
-    this.rsvpRows = [];
-    this.wishRows = [];
-    this.galleryRows = [];
-    this.nasheedRows = [];
-    this.weddingRows = [];
-    this.detachActivityListeners();
-    this.clearInactivityTimer();
-    this.clearWarningTimer();
+    await this.runWithActionLock('Logging out...', async () => {
+      await this.supabaseClient.auth.signOut();
+      this.isLoggedIn = false;
+      this.rsvpRows = [];
+      this.wishRows = [];
+      this.galleryRows = [];
+      this.nasheedRows = [];
+      this.weddingRows = [];
+      this.detachActivityListeners();
+      this.clearInactivityTimer();
+      this.clearWarningTimer();
+    });
   }
 
   protected async refreshData(): Promise<void> {
-    await this.loadAll();
+    if (this.actionLoading) {
+      return;
+    }
+    await this.runWithActionLock('Refreshing data...', async () => {
+      await this.loadAll();
+    });
   }
 
   protected switchTab(tab: 'rsvp' | 'wishes' | 'gallery' | 'nasheed' | 'weddings'): void {
+    if (this.actionLoading) {
+      return;
+    }
     if (tab === this.activeTab) {
       return;
     }
@@ -423,6 +443,9 @@ export class AdminComponent implements OnInit, OnDestroy {
   }
 
   protected async uploadGallery(): Promise<void> {
+    if (this.actionLoading) {
+      return;
+    }
     if (!this.supabaseClient || !this.galleryUpload.file) {
       this.galleryError = 'Please select an image to upload.';
       this.showToast(this.galleryError, 'error');
@@ -434,37 +457,43 @@ export class AdminComponent implements OnInit, OnDestroy {
       return;
     }
     this.galleryError = '';
-    this.uploading = true;
-    try {
-      const file = this.galleryUpload.file;
-      const filePath = `${Date.now()}-${this.sanitizeFilename(file.name)}`;
-      const { error: uploadError } = await this.supabaseClient
-        .storage
-        .from('gallery')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: file.type || 'image/jpeg'
+    await this.runWithActionLock('Uploading gallery...', async () => {
+      this.uploading = true;
+      try {
+        const file = this.galleryUpload.file;
+        if (!file) {
+          this.showToast('Please select an image to upload.', 'error');
+          return;
+        }
+        const filePath = `${Date.now()}-${this.sanitizeFilename(file.name)}`;
+        const { error: uploadError } = await this.supabaseClient
+          .storage
+          .from('gallery')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false,
+            contentType: file.type || 'image/jpeg'
+          });
+        if (uploadError) {
+          throw uploadError;
+        }
+        const { data } = this.supabaseClient.storage.from('gallery').getPublicUrl(filePath);
+        await this.supabaseClient.from('gallery').insert({
+          title: this.galleryUpload.title || null,
+          wedding_id: this.galleryUpload.weddingId.trim(),
+          image_url: data?.publicUrl ?? '',
+          storage_path: filePath,
+          created_at: new Date().toISOString()
         });
-      if (uploadError) {
-        throw uploadError;
+        this.galleryUpload = { title: '', weddingId: '', file: null };
+        await this.loadGallery();
+        this.showToast('Gallery uploaded successfully.', 'success');
+      } catch {
+        this.showToast('Gallery upload failed.', 'error');
+      } finally {
+        this.uploading = false;
       }
-      const { data } = this.supabaseClient.storage.from('gallery').getPublicUrl(filePath);
-      await this.supabaseClient.from('gallery').insert({
-        title: this.galleryUpload.title || null,
-        wedding_id: this.galleryUpload.weddingId.trim(),
-        image_url: data?.publicUrl ?? '',
-        storage_path: filePath,
-        created_at: new Date().toISOString()
-      });
-      this.galleryUpload = { title: '', weddingId: '', file: null };
-      await this.loadGallery();
-      this.showToast('Gallery uploaded successfully.', 'success');
-    } catch {
-      this.showToast('Gallery upload failed.', 'error');
-    } finally {
-      this.uploading = false;
-    }
+    });
   }
 
   protected startEditGallery(row: GalleryRow): void {
@@ -575,6 +604,9 @@ export class AdminComponent implements OnInit, OnDestroy {
   }
 
   protected async createNasheed(): Promise<void> {
+    if (this.actionLoading) {
+      return;
+    }
     if (!this.supabaseClient) {
       return;
     }
@@ -592,55 +624,57 @@ export class AdminComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (files.length) {
-      this.nasheedUploading = true;
-      for (let index = 0; index < files.length; index += 1) {
-        const uploadFile = files[index];
-        const filePath = `${Date.now()}-${this.sanitizeFilename(uploadFile.name)}`;
-        const { error: uploadError } = await this.supabaseClient
-          .storage
-          .from('nasheed')
-          .upload(filePath, uploadFile, {
-            cacheControl: '3600',
-            upsert: false,
-            contentType: uploadFile.type || 'audio/mpeg'
-          });
-          
-        if (uploadError) {
-          this.nasheedError = 'Upload failed. Please try again.';
-          this.showToast(this.nasheedError, 'error');
+    await this.runWithActionLock('Uploading nasheed...', async () => {
+      if (files.length) {
+        this.nasheedUploading = true;
+        try {
+          for (let index = 0; index < files.length; index += 1) {
+            const uploadFile = files[index];
+            const filePath = `${Date.now()}-${this.sanitizeFilename(uploadFile.name)}`;
+            const { error: uploadError } = await this.supabaseClient
+              .storage
+              .from('nasheed')
+              .upload(filePath, uploadFile, {
+                cacheControl: '3600',
+                upsert: false,
+                contentType: uploadFile.type || 'audio/mpeg'
+              });
+
+            if (uploadError) {
+              this.nasheedError = 'Upload failed. Please try again.';
+              this.showToast(this.nasheedError, 'error');
+              return;
+            }
+            const { data } = this.supabaseClient.storage.from('nasheed').getPublicUrl(filePath);
+            const titleBase = this.newNasheed.title.trim() || uploadFile.name.replace(/\.[^/.]+$/, '');
+            const title = files.length > 1 ? `${titleBase} ${index + 1}` : titleBase;
+
+            await this.supabaseClient.from('nasheed').insert({
+              title,
+              audio_url: data?.publicUrl ?? '',
+              storage_path: filePath,
+              created_at: new Date().toISOString()
+            });
+          }
+          this.newNasheed = { title: '', audioUrl: '', files: [] };
+          await this.loadNasheeds();
+          this.showToast('Nasheed uploaded successfully.', 'success');
+        } finally {
           this.nasheedUploading = false;
-          return;
         }
-        const { data } = this.supabaseClient.storage.from('nasheed').getPublicUrl(filePath);
-        const titleBase = this.newNasheed.title.trim() || uploadFile.name.replace(/\.[^/.]+$/, '');
-        const title = files.length > 1 ? `${titleBase} ${index + 1}` : titleBase;
-
-        await this.supabaseClient.from('nasheed').insert({
-          title,
-          audio_url: data?.publicUrl ?? '',
-          storage_path: filePath,
-          created_at: new Date().toISOString()
-        });
-
-
+        return;
       }
+
+      await this.supabaseClient.from('nasheed').insert({
+        title: this.newNasheed.title.trim() || 'Nasheed',
+        audio_url: manualUrl,
+        storage_path: null,
+        created_at: new Date().toISOString()
+      });
       this.newNasheed = { title: '', audioUrl: '', files: [] };
       await this.loadNasheeds();
-      this.showToast('Nasheed uploaded successfully.', 'success');
-      this.nasheedUploading = false;
-      return;
-    }
-
-    await this.supabaseClient.from('nasheed').insert({
-      title: this.newNasheed.title.trim() || 'Nasheed',
-      audio_url: manualUrl,
-      storage_path: null,
-      created_at: new Date().toISOString()
+      this.showToast('Nasheed saved successfully.', 'success');
     });
-    this.newNasheed = { title: '', audioUrl: '', files: [] };
-    await this.loadNasheeds();
-    this.showToast('Nasheed saved successfully.', 'success');
   }
 
   protected handleNasheedFile(event: Event): void {
@@ -961,6 +995,9 @@ export class AdminComponent implements OnInit, OnDestroy {
   }
 
   protected closeConfirm(): void {
+    if (this.actionLoading) {
+      return;
+    }
     this.confirmModal.open = false;
     this.confirmModal.message = '';
     this.confirmModal.onConfirm = null;
@@ -971,13 +1008,18 @@ export class AdminComponent implements OnInit, OnDestroy {
   }
 
   private async runConfirmAction(): Promise<void> {
-    try {
-      if (this.confirmModal.onConfirm) {
-        await this.confirmModal.onConfirm();
-      }
-    } finally {
-      this.closeConfirm();
+    if (!this.confirmModal.onConfirm || this.actionLoading) {
+      return;
     }
+    await this.runWithActionLock('Processing request...', async () => {
+      try {
+        await this.confirmModal.onConfirm?.();
+      } finally {
+        this.confirmModal.open = false;
+        this.confirmModal.message = '';
+        this.confirmModal.onConfirm = null;
+      }
+    });
   }
 
   private async loadAll(): Promise<void> {
@@ -1249,8 +1291,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     }
 
     for (const path of validPaths) {
-      const { data, error } = await this.supabaseClient.storage.from(bucket).remove([path]);
-      console.info(`[${bucket}] storage remove result`, { path, data, error });
+      const { error } = await this.supabaseClient.storage.from(bucket).remove([path]);
       if (error && !this.isStorageMissingError(error) && !this.isStorageInvalidKeyError(error)) {
         hadHardError = true;
       }
@@ -1264,11 +1305,9 @@ export class AdminComponent implements OnInit, OnDestroy {
     for (const path of validPaths) {
       const stillExists = await this.storageObjectExists(bucket, path);
       if (stillExists) {
-        console.warn(`[${bucket}] storage object still exists after delete`, { path });
         const filename = path.split('/').pop() ?? '';
         if (filename) {
           const forced = await this.forceDeleteByFilename(bucket, filename);
-          console.info(`[${bucket}] force delete by filename`, { filename, forced });
           if (forced) {
             const existsAfterForce = await this.storageObjectExists(bucket, path);
             if (!existsAfterForce) {
@@ -1314,8 +1353,7 @@ export class AdminComponent implements OnInit, OnDestroy {
       return false;
     }
     const targetPaths = Array.from(targets);
-    const { data, error } = await this.supabaseClient.storage.from(bucket).remove(targetPaths);
-    console.info(`[${bucket}] force remove targets`, { targetPaths, data, error });
+    const { error } = await this.supabaseClient.storage.from(bucket).remove(targetPaths);
     return !error;
   }
 
@@ -1339,11 +1377,9 @@ export class AdminComponent implements OnInit, OnDestroy {
         body: JSON.stringify({ bucket, paths })
       });
 
-      const payload = await response.json().catch(() => ({}));
-      console.info(`[${bucket}] server storage delete`, { paths, status: response.status, payload });
+      await response.json().catch(() => ({}));
       return response.ok;
     } catch (error) {
-      console.warn(`[${bucket}] server storage delete failed`, { paths, error });
       return false;
     }
   }
@@ -1364,7 +1400,6 @@ export class AdminComponent implements OnInit, OnDestroy {
       search: filename
     });
     if (error) {
-      console.warn(`[${bucket}] storage list verify failed`, { path: normalized, error });
       return false;
     }
     return (data ?? []).some((item: any) => item?.name === filename);
@@ -1436,5 +1471,18 @@ export class AdminComponent implements OnInit, OnDestroy {
     window.setTimeout(() => {
       this.toast = { message: '', type: '' };
     }, 2400);
+  }
+
+  private async runWithActionLock(label: string, action: () => Promise<void>): Promise<void> {
+    if (this.actionLoading) {
+      return;
+    }
+    this.actionLoadingText = label;
+    this.actionLoading = true;
+    try {
+      await action();
+    } finally {
+      this.actionLoading = false;
+    }
   }
 }

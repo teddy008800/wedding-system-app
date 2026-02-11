@@ -1,4 +1,4 @@
-<div class="min-h-screen text-slate-900 dark:text-slate-100">
+<div class="min-h-screen text-slate-900 dark:text-slate-100" [class.is-busy]="actionLoading">
   <audio #nasheed preload="none" loop [src]="nasheedUrl"></audio>
 
   <div class="relative overflow-hidden">
@@ -169,7 +169,7 @@
           <label class="label">Ucapan</label>
           <textarea class="input h-28" name="wishMessage" [(ngModel)]="newWish.message" placeholder="Tulis ucapan anda" required></textarea>
         </div>
-        <button class="btn-primary w-full" type="submit" [disabled]="!canSubmitWish">
+        <button class="btn-primary w-full" type="submit" [disabled]="!canSubmitWish || actionLoading">
           {{ canSubmitWish ? 'Hantar Ucapan' : 'Tunggu ' + wishCooldown + 's' }}
         </button>
         <div class="popup" *ngIf="wishPopup">{{ wishPopup }}</div>
@@ -200,7 +200,7 @@
           <button
             class="like-btn"
             type="button"
-            [disabled]="isWishLiked(wish.id)"
+            [disabled]="isWishLiked(wish.id) || actionLoading"
             [class.like-pulse]="shouldPulseLike(wish.id)"
             (click)="likeWish(wish, $event)"
           >
@@ -216,9 +216,6 @@
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 class="section-title">RSVP Live</h2>
-          <p class="text-sm text-slate-600 dark:text-slate-300">
-            Data RSVP akan dihantar terus ke Supabase table bernama `rsvp`.
-          </p>
         </div>
         <span class="badge">Powered by Supabase</span>
       </div>
@@ -228,7 +225,7 @@
           <input class="input" name="rsvpName" [(ngModel)]="rsvp.name" required />
         </div>
         <div>
-          <label class="label">Email</label>
+          <label class="label">Email/No Tel.</label>
           <input class="input" type="email" name="rsvpEmail" [(ngModel)]="rsvp.email" required />
         </div>
         <div>
@@ -257,7 +254,7 @@
           <textarea class="input h-28" name="rsvpMessage" [(ngModel)]="rsvp.message"></textarea>
         </div>
         <div class="lg:col-span-2 flex flex-wrap items-center gap-4">
-          <button class="btn-primary" type="submit" [disabled]="rsvpLoading">
+          <button class="btn-primary" type="submit" [disabled]="rsvpLoading || actionLoading">
             {{ rsvpLoading ? 'Menghantar...' : 'Hantar RSVP' }}
           </button>
           <span class="text-sm text-rose-500" *ngIf="rsvpResult">{{ rsvpResult }}</span>
@@ -282,5 +279,12 @@
     <span class="heart-float" *ngFor="let heart of heartBursts" [style.left.px]="heart.x" [style.top.px]="heart.y">
       &#10084;
     </span>
+  </div>
+
+  <div class="fixed inset-0 z-[70] grid place-items-center bg-slate-900/45 backdrop-blur-sm" *ngIf="actionLoading">
+    <div class="rounded-2xl border border-rose-200/70 bg-white px-6 py-4 text-center shadow-xl">
+      <div class="h-6 w-6 mx-auto mb-2 animate-spin rounded-full border-2 border-rose-200 border-t-rose-500"></div>
+      <div class="text-sm font-semibold text-slate-900">{{ actionLoadingText }}</div>
+    </div>
   </div>
 </div>

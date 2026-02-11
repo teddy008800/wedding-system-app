@@ -29,11 +29,13 @@ export class RegisterComponent implements OnInit {
   protected slugError = '';
   protected submitted = false;
   protected loading = false;
+  protected actionLoading = false;
+  protected actionLoadingText = 'Processing...';
   protected result = '';
   protected confirmModal = {
     open: false,
     message: '',
-    onConfirm: null as null | (() => void)
+    onConfirm: null as null | (() => void | Promise<void>)
   };
 
   private supabaseClient: any | null = null;
@@ -54,6 +56,9 @@ export class RegisterComponent implements OnInit {
   }
 
   protected async submitRegistration(): Promise<void> {
+    if (this.actionLoading) {
+      return;
+    }
     if (!this.supabaseClient) {
       return;
     }
@@ -214,15 +219,28 @@ export class RegisterComponent implements OnInit {
   }
 
   protected confirmAction(): void {
-    if (this.confirmModal.onConfirm) {
-      this.confirmModal.onConfirm();
+    if (this.actionLoading) {
+      return;
     }
-    this.closeConfirm();
+    void this.runConfirmAction();
   }
 
-  private openConfirm(message: string, onConfirm: () => void): void {
+  private openConfirm(message: string, onConfirm: () => void | Promise<void>): void {
     this.confirmModal.open = true;
     this.confirmModal.message = message;
     this.confirmModal.onConfirm = onConfirm;
+  }
+
+  private async runConfirmAction(): Promise<void> {
+    this.actionLoadingText = 'Saving registration...';
+    this.actionLoading = true;
+    try {
+      if (this.confirmModal.onConfirm) {
+        await Promise.resolve(this.confirmModal.onConfirm());
+      }
+    } finally {
+      this.actionLoading = false;
+      this.closeConfirm();
+    }
   }
 }

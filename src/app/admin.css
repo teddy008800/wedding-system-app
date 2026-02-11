@@ -8,6 +8,14 @@
   overflow-x: hidden;
 }
 
+.admin-page.is-busy button,
+.admin-page.is-busy a,
+.admin-page.is-busy input,
+.admin-page.is-busy select,
+.admin-page.is-busy textarea {
+  pointer-events: none;
+}
+
 .admin-page .input {
   background: rgba(255, 245, 250, 0.95);
   border: 1px solid rgba(248, 200, 220, 0.7);

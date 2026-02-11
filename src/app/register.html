@@ -1,4 +1,4 @@
-<div class="register-page">
+<div class="register-page" [class.is-busy]="actionLoading">
   <div class="register-shell">
     <div class="register-header">
       <div class="register-kicker">Wedding Card Registration</div>
@@ -21,7 +21,7 @@
           </div>
         </div>
         <div class="register-slug" *ngIf="slugPreview">
-          Slug preview: <strong>{{ slugPreview }}</strong>
+          Slug preview (guna url/ +): <strong>{{ slugPreview }}</strong>
         </div>
         <div class="register-error" *ngIf="slugError">{{ slugError }}</div>
 
@@ -71,9 +71,9 @@
                   <input class="input" type="time" [(ngModel)]="item.time" name="time{{ i }}" />
                 </div>
                 <input class="input" type="text" placeholder="Activity" [(ngModel)]="item.title" name="title{{ i }}" />
-                <button class="btn-outline small-btn" type="button" (click)="removeTentativeRow(i)">Remove</button>
+                <button class="btn-outline small-btn" type="button" (click)="removeTentativeRow(i)" [disabled]="actionLoading">Remove</button>
               </div>
-              <button class="btn-outline small-btn" type="button" (click)="addTentativeRow()">Add Row</button>
+              <button class="btn-outline small-btn" type="button" (click)="addTentativeRow()" [disabled]="actionLoading">Add Row</button>
             </div>
           </div>
           <div>
@@ -86,7 +86,7 @@
           </div>
         </div>
 
-        <button class="btn-primary" type="submit" [disabled]="loading">
+        <button class="btn-primary" type="submit" [disabled]="loading || actionLoading">
           {{ loading ? 'Submitting...' : 'Register Wedding' }}
         </button>
         <div class="register-result" *ngIf="result">{{ result }}</div>
@@ -103,8 +103,15 @@
     <div class="text-lg font-semibold text-slate-900">Confirm Submission</div>
     <p class="mt-2 text-sm text-slate-600">{{ confirmModal.message }}</p>
     <div class="mt-5 flex justify-end gap-2">
-      <button class="btn-outline text-slate-900" type="button" (click)="closeConfirm()">Cancel</button>
-      <button class="btn-primary" type="button" (click)="confirmAction()">Confirm</button>
+      <button class="btn-outline text-slate-900" type="button" (click)="closeConfirm()" [disabled]="actionLoading">Cancel</button>
+      <button class="btn-primary" type="button" (click)="confirmAction()" [disabled]="actionLoading">Confirm</button>
     </div>
+  </div>
+</div>
+
+<div class="fixed inset-0 z-[70] grid place-items-center bg-slate-900/45 backdrop-blur-sm" *ngIf="actionLoading">
+  <div class="w-[min(90vw,320px)] rounded-2xl border border-rose-200/70 bg-white px-6 py-4 text-center shadow-xl">
+    <div class="h-6 w-6 mx-auto mb-2 animate-spin rounded-full border-2 border-rose-200 border-t-rose-500"></div>
+    <div class="text-sm font-semibold text-slate-900">{{ actionLoadingText }}</div>
   </div>
 </div>
