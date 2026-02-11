@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": "dist/wedding-aqil-syafiqah/browser",
+  "outputDirectory": "dist/WeddingAqilSyafiqah/browser",
   "rewrites": [
     {
       "source": "/(.*)",
