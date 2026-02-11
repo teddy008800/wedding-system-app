@@ -1,0 +1,71 @@
+<div class="rsvp-page">
+  <div class="rsvp-shell">
+    <div class="rsvp-header">
+      <div>
+        <div class="rsvp-kicker">Live RSVP</div>
+        <h1 class="rsvp-title">{{ weddingLabel || weddingSlug }}</h1>
+      </div>
+      <div class="rsvp-slug">/rsvp/{{ weddingSlug }}</div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">Guests (Yes)</div>
+        <div class="summary-value">{{ totalGuestsYes }}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Guests (No)</div>
+        <div class="summary-value">{{ totalGuestsNo }}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Guests (Maybe)</div>
+        <div class="summary-value">{{ totalGuestsMaybe }}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Guests (Total)</div>
+        <div class="summary-value">{{ totalGuestsAll }}</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input
+        class="input"
+        type="text"
+        [ngModel]="searchTerm"
+        (ngModelChange)="setSearch($event)"
+        placeholder="Search by name, email, attendance..."
+      />
+      <div class="count">{{ filteredRows.length }} rows</div>
+    </div>
+
+    <div class="state" *ngIf="isLoading">Loading RSVP data...</div>
+    <div class="state error" *ngIf="!isLoading && errorMessage">{{ errorMessage }}</div>
+
+    <div class="table-wrap" *ngIf="!isLoading && !errorMessage">
+      <div class="table-head table-row">
+        <div>Guest</div>
+        <div>Contact</div>
+        <div>Guests</div>
+        <div>Attendance</div>
+        <div>Message</div>
+        <div>Created</div>
+      </div>
+      <div class="table-row" *ngFor="let row of pagedRows">
+        <div class="strong">{{ row.name }}</div>
+        <div class="truncate">{{ row.email }}</div>
+        <div>{{ row.guests }}</div>
+        <div><span class="pill">{{ row.attendance }}</span></div>
+        <div class="truncate">{{ row.message || '-' }}</div>
+        <div class="muted">{{ row.created_at | date:'mediumDate' }}</div>
+      </div>
+      <div class="state" *ngIf="!pagedRows.length">No RSVP found.</div>
+    </div>
+
+    <div class="pagination" *ngIf="!isLoading && !errorMessage">
+      <button class="btn" type="button" (click)="prevPage()" [disabled]="page === 1">Prev</button>
+      <span>Page {{ page }} of {{ totalPages }}</span>
+      <button class="btn" type="button" (click)="nextPage()" [disabled]="page === totalPages">Next</button>
+    </div>
+  </div>
+</div>
+

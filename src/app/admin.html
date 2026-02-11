@@ -1,0 +1,589 @@
+<div class="admin-page">
+  <div class="admin-shell">
+    <div class="admin-header">
+      <div>
+        <div class="admin-kicker">Admin Dashboard</div>
+        <h1 class="admin-title">Wedding Management</h1>
+      </div>
+      <div class="admin-actions" *ngIf="isLoggedIn">
+        <button class="btn-outline" type="button" (click)="refreshData()">Refresh</button>
+        <button class="btn-primary" type="button" (click)="handleLogout()">Logout</button>
+      </div>
+    </div>
+
+    <div class="admin-card login-card" *ngIf="!isLoggedIn">
+      <h2 class="admin-section-title">Login</h2>
+      <p class="admin-muted">Gunakan akaun admin Supabase Auth.</p>
+      <form class="admin-form" (ngSubmit)="handleLogin()">
+        <label class="label">Email</label>
+        <input class="input" type="email" name="adminEmail" [(ngModel)]="login.email" required placeholder="admin@email.com" />
+        <label class="label">Password</label>
+        <input class="input" type="password" name="adminPassword" [(ngModel)]="login.password" required placeholder="password" />
+        <button class="btn-primary" type="submit" [disabled]="isLoading">
+          {{ isLoading ? 'Logging in...' : 'Login' }}
+        </button>
+        <div class="admin-error" *ngIf="loginError">{{ loginError }}</div>
+      </form>
+    </div>
+
+    <div *ngIf="isLoggedIn" class="admin-grid">
+      <div class="admin-tabs flex items-center gap-2 rounded-full border border-rose-200/60 bg-white/80 p-1 shadow-sm overflow-x-auto">
+        <button
+          class="admin-tab-btn px-4 py-2 text-sm font-semibold rounded-full shrink-0 whitespace-nowrap"
+          [ngClass]="activeTab === 'rsvp' ? 'bg-rose-500 text-white shadow' : 'text-slate-700'"
+          (click)="switchTab('rsvp')"
+        >
+          RSVP
+        </button>
+        <button
+          class="admin-tab-btn px-4 py-2 text-sm font-semibold rounded-full shrink-0 whitespace-nowrap"
+          [ngClass]="activeTab === 'wishes' ? 'bg-rose-500 text-white shadow' : 'text-slate-700'"
+          (click)="switchTab('wishes')"
+        >
+          Wishes
+        </button>
+        <button
+          class="admin-tab-btn px-4 py-2 text-sm font-semibold rounded-full shrink-0 whitespace-nowrap"
+          [ngClass]="activeTab === 'gallery' ? 'bg-rose-500 text-white shadow' : 'text-slate-700'"
+          (click)="switchTab('gallery')"
+        >
+          Gallery
+        </button>
+        <button
+          class="admin-tab-btn px-4 py-2 text-sm font-semibold rounded-full shrink-0 whitespace-nowrap"
+          [ngClass]="activeTab === 'nasheed' ? 'bg-rose-500 text-white shadow' : 'text-slate-700'"
+          (click)="switchTab('nasheed')"
+        >
+          Nasheed
+        </button>
+        <button
+          class="admin-tab-btn px-4 py-2 text-sm font-semibold rounded-full shrink-0 whitespace-nowrap"
+          [ngClass]="activeTab === 'weddings' ? 'bg-rose-500 text-white shadow' : 'text-slate-700'"
+          (click)="switchTab('weddings')"
+        >
+          Weddings
+        </button>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="relative w-full max-w-sm">
+          <input
+            class="input pl-10"
+            type="text"
+            [placeholder]="activeTab === 'rsvp' ? 'Search RSVP...' : activeTab === 'wishes' ? 'Search wishes...' : activeTab === 'gallery' ? 'Search gallery...' : activeTab === 'nasheed' ? 'Search nasheed...' : 'Search weddings...'"
+            [ngModel]="searchTerm"
+            (ngModelChange)="setSearchTerm($event)"
+          />
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" aria-hidden="true">
+              <path fill="currentColor" d="M15.5 14h-.8l-.3-.3a6 6 0 1 0-.9.9l.3.3v.8l5 5 1.5-1.5-5-5Zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9Z"/>
+            </svg>
+          </span>
+        </div>
+        <div class="text-sm text-slate-500">
+          Showing
+          {{
+            activeTab === 'rsvp'
+              ? filteredRsvpRows.length
+              : activeTab === 'wishes'
+              ? filteredWishRows.length
+              : activeTab === 'gallery'
+              ? filteredGalleryRows.length
+              : activeTab === 'nasheed'
+              ? filteredNasheedRows.length
+              : filteredWeddingRows.length
+          }}
+          rows
+        </div>
+      </div>
+      <section class="admin-card" *ngIf="activeTab === 'rsvp'">
+        <div class="admin-section-head">
+          <h2 class="admin-section-title">RSVP Table</h2>
+          <span class="admin-badge">{{ rsvpRows.length }} rows</span>
+        </div>
+        <div class="admin-table">
+          <div class="admin-row admin-head">
+            <div>Guest</div>
+            <div>Contact</div>
+            <div>Guests</div>
+            <div>Attendance</div>
+            <div>Actions</div>
+          </div>
+          <div
+            class="admin-row"
+            *ngFor="let row of pagedRsvpRows"
+            (click)="selectRow('rsvp', row.id)"
+            [ngClass]="selectedRsvpId === row.id ? 'ring-2 ring-rose-300/70 shadow-lg' : ''"
+          >
+            <div class="admin-main">
+              <div class="admin-strong">{{ row.name }}</div>
+              <div class="admin-subtle">{{ row.email }}</div>
+            </div>
+            <div>
+              <div class="admin-strong">{{ row.email }}</div>
+              <div class="admin-subtle">Created: {{ row.created_at | date:'mediumDate' }}</div>
+            </div>
+            <div class="admin-pill">{{ row.guests }}</div>
+            <div class="admin-pill">{{ row.attendance }}</div>
+            <div class="admin-row-actions">
+              <button class="icon-btn icon-view" type="button" (click)="toggleRsvpDetails(row.id)" aria-label="View">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 9 5 9 7s-4 7-9 7-9-5-9-7 4-7 9-7Zm0 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg>
+              </button>
+              <button class="icon-btn icon-edit" type="button" (click)="startEditRsvp(row)" aria-label="Edit">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5V20h3.5L19 8.5 15.5 5 4 16.5Zm16.7-10.8a1 1 0 0 0 0-1.4l-1.9-1.9a1 1 0 0 0-1.4 0l-1.5 1.5 3.5 3.5 1.3-1.7Z"/></svg>
+              </button>
+              <button class="icon-btn icon-delete" type="button" (click)="deleteRsvp(row.id)" aria-label="Delete">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7Zm3-3h6l1 2H8l1-2Z"/></svg>
+              </button>
+            </div>
+            <div class="admin-details" *ngIf="expandedRsvpId === row.id">
+              <div><strong>Message:</strong> {{ row.message || '-' }}</div>
+              <div><strong>Created:</strong> {{ row.created_at | date:'mediumDate' }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-edit" *ngIf="editingRsvp">
+          <h3>Edit RSVP</h3>
+          <label class="label">Name</label>
+          <input class="input" [(ngModel)]="editingRsvp.name" name="editRsvpName" />
+          <label class="label">Email</label>
+          <input class="input" [(ngModel)]="editingRsvp.email" name="editRsvpEmail" />
+          <label class="label">Guests</label>
+          <input class="input" type="number" [(ngModel)]="editingRsvp.guests" name="editRsvpGuests" />
+          <label class="label">Attendance</label>
+          <select class="input" [(ngModel)]="editingRsvp.attendance" name="editRsvpAttendance">
+            <option value="yes">yes</option>
+            <option value="maybe">maybe</option>
+            <option value="no">no</option>
+          </select>
+          <label class="label">Message</label>
+          <textarea class="input" [(ngModel)]="editingRsvp.message" name="editRsvpMessage"></textarea>
+          <div class="admin-row-actions">
+            <button class="btn-primary" type="button" (click)="saveRsvp()">Save</button>
+            <button class="btn-outline" type="button" (click)="cancelEditRsvp()">Cancel</button>
+          </div>
+        </div>
+
+        <div class="mt-4 flex items-center justify-between text-sm text-slate-600">
+          <button class="btn-outline" type="button" (click)="prevPage('rsvp')" [disabled]="rsvpPage === 1">Prev</button>
+          <span>Page {{ rsvpPage }} of {{ rsvpTotalPages }}</span>
+          <button class="btn-outline" type="button" (click)="nextPage('rsvp')" [disabled]="rsvpPage === rsvpTotalPages">Next</button>
+        </div>
+      </section>
+
+      <section class="admin-card" *ngIf="activeTab === 'wishes'">
+        <div class="admin-section-head">
+          <h2 class="admin-section-title">Wishes Table</h2>
+          <span class="admin-badge">{{ wishRows.length }} rows</span>
+        </div>
+        <div class="admin-table">
+          <div class="admin-row admin-head wish-row">
+            <div>Guest</div>
+            <div>Message</div>
+            <div>Likes</div>
+            <div class="actions-col">Actions</div>
+          </div>
+          <div
+            class="admin-row wish-row"
+            *ngFor="let row of pagedWishRows"
+            (click)="selectRow('wishes', row.id)"
+            [ngClass]="selectedWishId === row.id ? 'ring-2 ring-rose-300/70 shadow-lg' : ''"
+          >
+            <div class="admin-main">
+              <div class="admin-strong">{{ row.name }}</div>
+              <div class="admin-subtle">Created: {{ row.created_at | date:'mediumDate' }}</div>
+            </div>
+            <div class="admin-truncate">{{ row.message }}</div>
+            <div class="admin-pill">{{ getLikeCount(row.id) }}</div>
+            <div class="admin-row-actions actions-col">
+              <button class="icon-btn icon-view" type="button" (click)="toggleWishDetails(row.id)" aria-label="View">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 9 5 9 7s-4 7-9 7-9-5-9-7 4-7 9-7Zm0 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg>
+              </button>
+              <button class="icon-btn icon-edit" type="button" (click)="startEditWish(row)" aria-label="Edit">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5V20h3.5L19 8.5 15.5 5 4 16.5Zm16.7-10.8a1 1 0 0 0 0-1.4l-1.9-1.9a1 1 0 0 0-1.4 0l-1.5 1.5 3.5 3.5 1.3-1.7Z"/></svg>
+              </button>
+              <button class="icon-btn icon-delete" type="button" (click)="deleteWish(row.id)" aria-label="Delete">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7Zm3-3h6l1 2H8l1-2Z"/></svg>
+              </button>
+            </div>
+            <div class="admin-details" *ngIf="expandedWishId === row.id">
+              <div><strong>Message:</strong> {{ row.message }}</div>
+              <div><strong>Created:</strong> {{ row.created_at | date:'mediumDate' }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-edit" *ngIf="editingWish">
+          <h3>Edit Wish</h3>
+          <label class="label">Name</label>
+          <input class="input" [(ngModel)]="editingWish.name" name="editWishName" />
+          <label class="label">Message</label>
+          <textarea class="input" [(ngModel)]="editingWish.message" name="editWishMessage"></textarea>
+          <div class="admin-row-actions">
+            <button class="btn-primary" type="button" (click)="saveWish()">Save</button>
+            <button class="btn-outline" type="button" (click)="cancelEditWish()">Cancel</button>
+          </div>
+        </div>
+
+        <div class="mt-4 flex items-center justify-between text-sm text-slate-600">
+          <button class="btn-outline" type="button" (click)="prevPage('wishes')" [disabled]="wishPage === 1">Prev</button>
+          <span>Page {{ wishPage }} of {{ wishTotalPages }}</span>
+          <button class="btn-outline" type="button" (click)="nextPage('wishes')" [disabled]="wishPage === wishTotalPages">Next</button>
+        </div>
+      </section>
+
+      <section class="admin-card" *ngIf="activeTab === 'gallery'">
+        <div class="admin-section-head">
+          <h2 class="admin-section-title">Gallery Table</h2>
+          <span class="admin-badge">{{ galleryRows.length }} rows</span>
+        </div>
+
+        <div class="grid gap-4">
+          <div class="flex flex-col gap-3">
+            <label class="label">Wedding</label>
+            <select class="input" [(ngModel)]="galleryUpload.weddingId" name="galleryUploadWeddingId">
+              <option value="">Select wedding</option>
+              <option *ngFor="let item of weddingRows" [value]="item.id">{{ item.slug }} - {{ item.groom }} &amp; {{ item.bride }}</option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-3">
+            <label class="label">Title</label>
+            <input class="input" type="text" [(ngModel)]="galleryUpload.title" placeholder="Photo title (optional)" />
+          </div>
+          <div class="flex flex-col gap-3">
+            <label class="label">Upload Image</label>
+            <input
+              #galleryFileInput
+              class="hidden"
+              type="file"
+              accept="image/*"
+              (change)="handleGalleryFile($event)"
+            />
+            <div
+              class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-rose-200 bg-white/70 p-6 text-center transition min-h-[170px]"
+              [ngClass]="isDragOver ? 'border-rose-400 bg-rose-50' : ''"
+              (dragover)="handleDragOver($event)"
+              (dragleave)="handleDragLeave($event)"
+              (drop)="handleDrop($event)"
+              (click)="openGalleryPicker()"
+              role="button"
+              tabindex="0"
+            >
+              <div class="text-sm font-semibold text-slate-700">Drag & drop photo here</div>
+              <div class="text-xs text-slate-500 mt-1">or click to select file</div>
+              <div class="mt-3 text-xs text-slate-500" *ngIf="galleryUpload.file">{{ galleryUpload.file.name }}</div>
+            </div>
+          </div>
+        </div>
+        <button class="btn-primary mt-4" type="button" (click)="uploadGallery()" [disabled]="uploading || !galleryUpload.file || !galleryUpload.weddingId">
+          {{ uploading ? 'Uploading...' : 'Upload Photo' }}
+        </button>
+        <div class="admin-error" *ngIf="galleryError">{{ galleryError }}</div>
+
+        <div class="admin-table mt-6">
+          <div class="admin-row admin-head gallery-row">
+            <div>Preview</div>
+            <div>Slug</div>
+            <div>Title</div>
+            <div>Created</div>
+            <div class="actions-col">Actions</div>
+          </div>
+          <div
+            class="admin-row gallery-row"
+            *ngFor="let row of pagedGalleryRows"
+            (click)="selectRow('gallery', row.id)"
+            [ngClass]="selectedGalleryId === row.id ? 'ring-2 ring-rose-300/70 shadow-lg' : ''"
+          >
+            <div class="gallery-preview-cell">
+              <img [src]="getGalleryImage(row)" alt="Gallery" class="h-12 w-12 rounded-xl object-cover" />
+            </div>
+            <div class="admin-strong">{{ getWeddingSlug(row.wedding_id) }}</div>
+            <div class="admin-truncate">{{ row.title || '-' }}</div>
+            <div class="admin-subtle">{{ row.created_at | date:'mediumDate' }}</div>
+            <div class="admin-row-actions actions-col">
+              <button class="icon-btn icon-edit" type="button" (click)="startEditGallery(row)" aria-label="Edit">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5V20h3.5L19 8.5 15.5 5 4 16.5Zm16.7-10.8a1 1 0 0 0 0-1.4l-1.9-1.9a1 1 0 0 0-1.4 0l-1.5 1.5 3.5 3.5 1.3-1.7Z"/></svg>
+              </button>
+              <button class="icon-btn icon-delete" type="button" (click)="deleteGallery(row)" aria-label="Delete">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7Zm3-3h6l1 2H8l1-2Z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-edit" *ngIf="editingGallery">
+          <h3>Edit Gallery Title</h3>
+          <div class="gallery-edit-preview">
+            <img [src]="getGalleryImage(editingGallery)" alt="Gallery preview" class="h-28 w-28 rounded-xl object-cover border border-rose-200/70" />
+          </div>
+          <label class="label">Title</label>
+          <input class="input" [(ngModel)]="editingGallery.title" name="editGalleryTitle" />
+          <div class="admin-row-actions">
+            <button class="btn-primary" type="button" (click)="saveGalleryTitle()">Save</button>
+            <button class="btn-outline" type="button" (click)="cancelEditGallery()">Cancel</button>
+          </div>
+        </div>
+
+        <div class="mt-4 flex items-center justify-between text-sm text-slate-600">
+          <button class="btn-outline" type="button" (click)="prevPage('gallery')" [disabled]="galleryPage === 1">Prev</button>
+          <span>Page {{ galleryPage }} of {{ galleryTotalPages }}</span>
+          <button class="btn-outline" type="button" (click)="nextPage('gallery')" [disabled]="galleryPage === galleryTotalPages">Next</button>
+        </div>
+      </section>
+
+      <section class="admin-card" *ngIf="activeTab === 'nasheed'">
+        <div class="admin-section-head">
+          <h2 class="admin-section-title">Nasheed Table</h2>
+          <span class="admin-badge">{{ nasheedRows.length }} rows</span>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <div>
+            <label class="label">Title</label>
+            <input class="input" [(ngModel)]="newNasheed.title" placeholder="Nasheed title" />
+          </div>
+          <div>
+            <label class="label">Audio URL (optional)</label>
+            <input class="input" [(ngModel)]="newNasheed.audioUrl" placeholder="https://..." />
+          </div>
+        </div>
+        <div class="mt-4">
+          <label class="label">Upload MP3</label>
+          <input
+            #nasheedFileInput
+            class="hidden"
+            type="file"
+            accept="audio/mpeg"
+            multiple
+            (change)="handleNasheedFile($event)"
+          />
+          <div
+            class="mt-3 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-rose-200 bg-white/70 p-6 text-center transition"
+            [ngClass]="isNasheedDragOver ? 'border-rose-400 bg-rose-50' : ''"
+            (dragover)="handleNasheedDragOver($event)"
+            (dragleave)="handleNasheedDragLeave($event)"
+            (drop)="handleNasheedDrop($event)"
+            (click)="nasheedFileInput.click()"
+            role="button"
+            tabindex="0"
+          >
+            <div class="text-sm font-semibold text-slate-700">Drag & drop MP3 files here</div>
+            <div class="text-xs text-slate-500 mt-1">or click to select files</div>
+            <div class="mt-3 text-xs text-slate-500" *ngIf="newNasheed.files.length">
+              {{ newNasheed.files.length }} file(s) selected
+            </div>
+          </div>
+        </div>
+        <button class="btn-primary mt-4" type="button" (click)="createNasheed()" [disabled]="nasheedUploading">
+          {{ nasheedUploading ? 'Uploading...' : 'Add Nasheed' }}
+        </button>
+        <div class="admin-error" *ngIf="nasheedError">{{ nasheedError }}</div>
+
+        <div class="admin-table mt-6">
+          <div class="admin-row admin-head nasheed-row">
+            <div>Title</div>
+            <div>Created</div>
+            <div class="actions-col">Actions</div>
+          </div>
+          <div
+            class="admin-row nasheed-row"
+            *ngFor="let row of pagedNasheedRows"
+            (click)="selectRow('nasheed', row.id)"
+            [ngClass]="selectedNasheedId === row.id ? 'ring-2 ring-rose-300/70 shadow-lg' : ''"
+          >
+            <div class="admin-strong">
+              {{ row.title }}
+              <canvas
+                class="mt-2 h-8 w-full rounded-md bg-rose-50"
+                [id]="'waveform-' + row.id"
+                *ngIf="playingNasheedId === row.id"
+              ></canvas>
+            </div>
+            <div class="admin-subtle">{{ row.created_at | date:'mediumDate' }}</div>
+            <div class="admin-row-actions actions-col">
+              <button class="icon-btn icon-view" type="button" (click)="togglePreview(row)" aria-label="Play">
+                <svg viewBox="0 0 24 24" aria-hidden="true" *ngIf="playingNasheedId !== row.id">
+                  <path d="M8 5v14l11-7-11-7Z"/>
+                </svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true" *ngIf="playingNasheedId === row.id">
+                  <path d="M6 5h4v14H6zM14 5h4v14h-4z"/>
+                </svg>
+              </button>
+              <button class="icon-btn icon-edit" type="button" (click)="startEditNasheed(row)" aria-label="Edit">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5V20h3.5L19 8.5 15.5 5 4 16.5Zm16.7-10.8a1 1 0 0 0 0-1.4l-1.9-1.9a1 1 0 0 0-1.4 0l-1.5 1.5 3.5 3.5 1.3-1.7Z"/></svg>
+              </button>
+              <button class="icon-btn icon-delete" type="button" (click)="deleteNasheed(row)" aria-label="Delete">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7Zm3-3h6l1 2H8l1-2Z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-edit" *ngIf="editingNasheed">
+          <h3>Edit Nasheed</h3>
+          <label class="label">Title</label>
+          <input class="input" [(ngModel)]="editingNasheed.title" name="editNasheedTitle" />
+          <label class="label">Audio URL</label>
+          <input class="input" [(ngModel)]="editingNasheed.audio_url" name="editNasheedUrl" />
+          <div class="admin-row-actions">
+            <button class="btn-primary" type="button" (click)="saveNasheed()">Save</button>
+            <button class="btn-outline" type="button" (click)="cancelEditNasheed()">Cancel</button>
+          </div>
+        </div>
+
+        <div class="mt-4 flex items-center justify-between text-sm text-slate-600">
+          <button class="btn-outline" type="button" (click)="prevPage('nasheed')" [disabled]="nasheedPage === 1">Prev</button>
+          <span>Page {{ nasheedPage }} of {{ nasheedTotalPages }}</span>
+          <button class="btn-outline" type="button" (click)="nextPage('nasheed')" [disabled]="nasheedPage === nasheedTotalPages">Next</button>
+        </div>
+      </section>
+
+      <section class="admin-card" *ngIf="activeTab === 'weddings'">
+        <div class="admin-section-head">
+          <h2 class="admin-section-title">Weddings Table</h2>
+          <span class="admin-badge">{{ weddingRows.length }} rows</span>
+        </div>
+
+        <div class="admin-table">
+          <div class="admin-row admin-head wish-row">
+            <div>Slug</div>
+            <div>Couple</div>
+            <div>Date</div>
+            <div class="actions-col">Actions</div>
+          </div>
+          <div
+            class="admin-row wish-row"
+            *ngFor="let row of pagedWeddingRows"
+            (click)="selectRow('weddings', row.id)"
+            [ngClass]="selectedWeddingId === row.id ? 'ring-2 ring-rose-300/70 shadow-lg' : ''"
+          >
+            <div class="admin-strong">{{ row.slug }}</div>
+            <div class="admin-truncate">{{ row.groom }} &amp; {{ row.bride }}</div>
+            <div class="admin-subtle">{{ row.wedding_date | date:'mediumDate' }}</div>
+            <div class="admin-row-actions actions-col">
+              <button class="icon-btn icon-view" type="button" (click)="openWeddingView(row)" aria-label="View">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 9 5 9 7s-4 7-9 7-9-5-9-7 4-7 9-7Zm0 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg>
+              </button>
+              <button class="icon-btn icon-edit" type="button" (click)="startEditWedding(row)" aria-label="Edit">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5V20h3.5L19 8.5 15.5 5 4 16.5Zm16.7-10.8a1 1 0 0 0 0-1.4l-1.9-1.9a1 1 0 0 0-1.4 0l-1.5 1.5 3.5 3.5 1.3-1.7Z"/></svg>
+              </button>
+              <button class="icon-btn icon-delete" type="button" (click)="deleteWedding(row.id)" aria-label="Delete">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7Zm3-3h6l1 2H8l1-2Z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-edit" *ngIf="editingWedding">
+          <h3>Edit Wedding</h3>
+          <label class="label">Slug</label>
+          <input class="input" [(ngModel)]="editingWedding.slug" name="editWeddingSlug" />
+          <label class="label">Groom</label>
+          <input class="input" [(ngModel)]="editingWedding.groom" name="editWeddingGroom" />
+          <label class="label">Bride</label>
+          <input class="input" [(ngModel)]="editingWedding.bride" name="editWeddingBride" />
+          <label class="label">Wedding Date</label>
+          <input class="input" type="date" [(ngModel)]="editingWedding.wedding_date" name="editWeddingDate" />
+          <label class="label">Venue</label>
+          <input class="input" [(ngModel)]="editingWedding.venue" name="editWeddingVenue" />
+          <label class="label">Wedding Tag</label>
+          <input class="input" [(ngModel)]="editingWedding.wedding_tag" name="editWeddingTag" />
+          <label class="label">Phone Number</label>
+          <input class="input" [(ngModel)]="editingWedding.phone_number" name="editWeddingPhone" />
+          <label class="label">Google Map URL</label>
+          <input class="input" [(ngModel)]="editingWedding.google_map_url" name="editWeddingMap" />
+          <label class="label">Dress Code</label>
+          <input class="input" [(ngModel)]="editingWedding.dress_code" name="editWeddingDress" />
+          <label class="label">Nasheed ID</label>
+          <select class="input" [(ngModel)]="editingWedding.nasheed_id" name="editWeddingNasheed">
+            <option [ngValue]="null">Select nasheed</option>
+            <option *ngFor="let item of nasheedRows" [ngValue]="item.id">{{ item.title }}</option>
+          </select>
+          <label class="label">Tentative</label>
+          <div class="tentative-list">
+            <div class="tentative-row" *ngFor="let item of editingWedding.wedding_tentative; let i = index">
+              <input class="input" type="time" [(ngModel)]="item.time" name="editWeddingTime{{ i }}" />
+              <input class="input" type="text" placeholder="Activity" [(ngModel)]="item.title" name="editWeddingTitle{{ i }}" />
+              <button class="icon-btn icon-delete" type="button" (click)="removeWeddingTentativeRow(i)" aria-label="Remove">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7Zm3-3h6l1 2H8l1-2Z"/></svg>
+              </button>
+            </div>
+            <button class="btn-outline small-btn" type="button" (click)="addWeddingTentativeRow()">Add Row</button>
+          </div>
+          <div class="admin-row-actions">
+            <button class="btn-primary" type="button" (click)="saveWedding()">Save</button>
+            <button class="btn-outline" type="button" (click)="cancelEditWedding()">Cancel</button>
+          </div>
+        </div>
+
+        <div class="mt-4 flex items-center justify-between text-sm text-slate-600">
+          <button class="btn-outline" type="button" (click)="prevPage('weddings')" [disabled]="weddingsPage === 1">Prev</button>
+          <span>Page {{ weddingsPage }} of {{ weddingsTotalPages }}</span>
+          <button class="btn-outline" type="button" (click)="nextPage('weddings')" [disabled]="weddingsPage === weddingsTotalPages">Next</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div
+  class="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 backdrop-blur-sm modal-fade"
+  *ngIf="confirmModal.open"
+>
+  <div class="w-[min(92vw,420px)] rounded-2xl border border-rose-200/60 bg-white p-6 shadow-[0_24px_40px_rgba(15,23,42,0.25)] modal-pop">
+    <div class="text-lg font-semibold text-slate-900">Confirm Action</div>
+    <p class="mt-2 text-sm text-slate-600">{{ confirmModal.message }}</p>
+    <div class="mt-5 flex justify-end gap-2">
+      <button class="btn-outline text-slate-900" type="button" (click)="closeConfirm()">Cancel</button>
+      <button class="btn-primary" type="button" (click)="confirmAction()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" *ngIf="toast.message" [ngClass]="toast.type === 'success' ? 'toast-success' : 'toast-error'">
+  {{ toast.message }}
+</div>
+
+<div
+  class="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 backdrop-blur-sm modal-fade"
+  *ngIf="viewingWedding"
+>
+  <div class="w-[min(92vw,520px)] rounded-2xl border border-rose-200/60 bg-white p-6 shadow-[0_24px_40px_rgba(15,23,42,0.25)] modal-pop">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <div class="text-lg font-semibold text-slate-900">Wedding Details</div>
+        <div class="text-sm text-slate-500">{{ viewingWedding.slug }}</div>
+      </div>
+      <button class="icon-btn icon-delete" type="button" (click)="closeWeddingView()" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6l-12 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="mt-4 space-y-2 text-sm text-slate-700">
+      <div><strong>Couple:</strong> {{ viewingWedding.groom }} &amp; {{ viewingWedding.bride }}</div>
+      <div><strong>Date:</strong> {{ viewingWedding.wedding_date | date:'mediumDate' }}</div>
+      <div><strong>Venue:</strong> {{ viewingWedding.venue }}</div>
+      <div><strong>Tag:</strong> {{ viewingWedding.wedding_tag || '-' }}</div>
+      <div><strong>Phone:</strong> {{ viewingWedding.phone_number || '-' }}</div>
+      <div><strong>Map:</strong> {{ viewingWedding.google_map_url || '-' }}</div>
+      <div><strong>Dress Code:</strong> {{ viewingWedding.dress_code || '-' }}</div>
+      <div><strong>Nasheed:</strong> {{ getNasheedTitle(viewingWedding.nasheed_id) }}</div>
+    </div>
+
+    <div class="mt-4">
+      <div class="text-sm font-semibold text-slate-900">Tentative</div>
+      <div class="mt-2 space-y-2 wedding-tentative-view">
+        <div class="wedding-tentative-item" *ngFor="let item of getTentativeList(viewingWedding)">
+          <span class="wedding-tentative-time">{{ item.time || '-' }}</span>
+          <span class="wedding-tentative-title">{{ item.title || '-' }}</span>
+        </div>
+        <div class="text-xs text-slate-500" *ngIf="!getTentativeList(viewingWedding).length">No tentative data.</div>
+      </div>
+    </div>
+
+    <div class="mt-5 flex justify-end">
+      <button class="btn-outline text-slate-900" type="button" (click)="closeWeddingView()">Close</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,288 @@
+<div class="min-h-screen text-slate-900 dark:text-slate-100">
+  <audio #nasheed preload="none" loop>
+    <source *ngIf="nasheedUrl" [src]="nasheedUrl" type="audio/mpeg" />
+  </audio>
+
+  <div class="relative overflow-hidden">
+    <div class="hero-glow"></div>
+
+    <header class="max-w-6xl mx-auto px-4 pt-10 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="flex items-center gap-3 w-full sm:w-auto">
+        <div class="h-11 w-11 rounded-full bg-rose-200 dark:bg-rose-900/40 grid place-items-center text-rose-700 dark:text-rose-100 font-semibold">
+          {{ coupleInitials }}
+        </div>
+        <div class="text-sm uppercase tracking-[0.3em] text-slate-600 dark:text-slate-300">Wedding Invitation</div>
+      </div>
+      <div class="flex w-full sm:w-auto items-center justify-end gap-2 flex-wrap">
+        <button class="btn-ghost" type="button" (click)="toggleAudio()">
+          {{ audioPlaying ? 'Pause Nasheed' : 'Play Nasheed' }}
+        </button>
+        <button class="btn-ghost" type="button" (click)="toggleDark()">
+          {{ isDark ? 'Light Mode' : 'Dark Mode' }}
+        </button>
+      </div>
+    </header>
+
+    <section id="home" class="max-w-6xl mx-auto px-4 py-12 lg:py-20 grid lg:grid-cols-[1.1fr_0.9fr] gap-10 items-center">
+      <div class="space-y-6">
+        <p class="text-sm uppercase tracking-[0.4em] text-rose-600 dark:text-rose-300">You are invited</p>
+        <h1 class="font-display text-5xl sm:text-6xl lg:text-7xl leading-[1.05]">
+          {{ couple.groom }} <span class="text-rose-500">&amp;</span> {{ couple.bride }}
+        </h1>
+        <p class="text-lg text-slate-600 dark:text-slate-300 max-w-xl">
+          Dengan penuh rasa syukur, kami menjemput anda untuk meraikan hari bahagia kami. Mari berkongsi doa dan
+          keberkatan bersama.
+        </p>
+        <div class="flex flex-wrap gap-3">
+          <a class="btn-primary" href="#rsvp" (click)="goToSection('rsvp', $event)">RSVP Sekarang</a>
+          <a class="btn-outline" href="#wishes" (click)="goToSection('wishes', $event)">Kirim Ucapan</a>
+        </div>
+        <div class="flex flex-wrap gap-6 text-sm text-slate-600 dark:text-slate-300">
+          <div>
+            <div class="font-semibold text-slate-900 dark:text-slate-100">Tarikh</div>
+            <div>{{ couple.date }}</div>
+          </div>
+          <div>
+            <div class="font-semibold text-slate-900 dark:text-slate-100">Lokasi</div>
+            <div>{{ couple.location }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-card p-6 md:p-8 space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm uppercase tracking-[0.3em] text-slate-500 dark:text-slate-300">Countdown</div>
+            <div class="text-2xl font-semibold mt-1">Menuju Hari Bahagia</div>
+          </div>
+          <div class="badge">{{ weddingTag }}</div>
+        </div>
+        <div class="grid grid-cols-4 gap-3 text-center">
+          <div class="counter-tile">
+            <div class="text-3xl font-semibold">{{ countdown.days }}</div>
+            <div class="text-xs uppercase tracking-[0.2em]">Hari</div>
+          </div>
+          <div class="counter-tile">
+            <div class="text-3xl font-semibold">{{ countdown.hours }}</div>
+            <div class="text-xs uppercase tracking-[0.2em]">Jam</div>
+          </div>
+          <div class="counter-tile">
+            <div class="text-3xl font-semibold">{{ countdown.minutes }}</div>
+            <div class="text-xs uppercase tracking-[0.2em]">Minit</div>
+          </div>
+          <div class="counter-tile">
+            <div class="text-3xl font-semibold">{{ countdown.seconds }}</div>
+            <div class="text-xs uppercase tracking-[0.2em]">Saat</div>
+          </div>
+        </div>
+        <p class="text-sm text-slate-600 dark:text-slate-300">
+          Nasheed akan berhenti sementara anda scroll dan bersambung semula selepas scroll berhenti.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <section id="details" class="max-w-6xl mx-auto px-4 py-16 grid lg:grid-cols-[0.9fr_1.1fr] gap-10">
+    <div class="space-y-4">
+      <h2 class="section-title">Aturcara Majlis</h2>
+      <p class="text-slate-600 dark:text-slate-300">
+        Satu hari yang penuh berkat. Sertai kami untuk akad nikah dan majlis resepsi di lokasi yang indah.
+      </p>
+      <div class="space-y-3">
+        <ng-container *ngIf="weddingTentative.length; else defaultTentative">
+          <div class="schedule-card" *ngFor="let item of weddingTentative">
+            <div class="font-semibold">{{ item.title || 'Tentative' }}</div>
+            <div class="text-sm text-slate-600 dark:text-slate-300">{{ item.time || '-' }}</div>
+          </div>
+        </ng-container>
+        <ng-template #defaultTentative>
+          <div class="schedule-card">
+            <div class="font-semibold">Akad Nikah</div>
+            <div class="text-sm text-slate-600 dark:text-slate-300">10:00 AM - 11:00 AM</div>
+          </div>
+          <div class="schedule-card">
+            <div class="font-semibold">Bacaan Doa &amp; Nasheed</div>
+            <div class="text-sm text-slate-600 dark:text-slate-300">11:15 AM - 12:00 PM</div>
+          </div>
+          <div class="schedule-card">
+            <div class="font-semibold">Jamuan &amp; Silaturahim</div>
+            <div class="text-sm text-slate-600 dark:text-slate-300">12:00 PM - 3:00 PM</div>
+          </div>
+        </ng-template>
+      </div>
+    </div>
+    <div class="glass-card p-6 space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-sm uppercase tracking-[0.3em] text-slate-500 dark:text-slate-300">Lokasi</div>
+          <div class="text-2xl font-semibold mt-1">{{ couple.location }}</div>
+        </div>
+        <a
+          *ngIf="googleMapUrl; else mapFallback"
+          class="btn-outline text-sm"
+          [href]="googleMapUrl"
+          target="_blank"
+          rel="noopener"
+        >Buka Peta</a>
+        <ng-template #mapFallback>
+          <a class="btn-outline text-sm" [routerLink]="[]" fragment="rsvp">RSVP</a>
+        </ng-template>
+      </div>
+      <div class="grid grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-300">
+        <div>
+          <div class="font-semibold text-slate-900 dark:text-slate-100">Dress Code</div>
+          <div>{{ dressCode }}</div>
+        </div>
+        <div>
+          <div class="font-semibold text-slate-900 dark:text-slate-100">Contact</div>
+          <div>{{ phoneNumber }}</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="gallery" class="max-w-6xl mx-auto px-4 py-16 space-y-8">
+    <div class="flex items-center justify-between">
+      <h2 class="section-title">Momen Istimewa</h2>
+      <span class="text-sm uppercase tracking-[0.3em] text-slate-500 dark:text-slate-300">Gallery</span>
+    </div>
+    <div class="gallery-shell">
+      <div class="gallery-track">
+        <div class="gallery-card" *ngFor="let item of galleryLoop">
+          <img [src]="item.imageUrl" [alt]="item.title || 'Gallery photo'" />
+          <div class="gallery-caption">{{ item.title || 'Moment' }}</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="wishes" class="max-w-6xl mx-auto px-4 py-16 space-y-8">
+    <div class="flex items-center justify-between">
+      <h2 class="section-title">Ucapan &amp; Doa</h2>
+      <span class="text-sm text-rose-500">Tap hati untuk like</span>
+    </div>
+    <div class="grid lg:grid-cols-[0.9fr_1.1fr] gap-8">
+      <form class="glass-card p-6 space-y-4" (ngSubmit)="submitWish()">
+        <div>
+          <label class="label">Nama</label>
+          <input class="input" name="wishName" [(ngModel)]="newWish.name" placeholder="Nama anda" required />
+        </div>
+        <div>
+          <label class="label">Ucapan</label>
+          <textarea class="input h-28" name="wishMessage" [(ngModel)]="newWish.message" placeholder="Tulis ucapan anda" required></textarea>
+        </div>
+        <button class="btn-primary w-full" type="submit" [disabled]="!canSubmitWish">
+          {{ canSubmitWish ? 'Hantar Ucapan' : 'Tunggu ' + wishCooldown + 's' }}
+        </button>
+        <div class="popup" *ngIf="wishPopup">{{ wishPopup }}</div>
+      </form>
+      <div
+        class="wish-list"
+        (mouseenter)="setRotationPaused(true)"
+        (mouseleave)="setRotationPaused(false)"
+        (touchstart)="setRotationPaused(true)"
+        (touchend)="setRotationPaused(false)"
+      >
+        <div class="wish-card wish-exit" *ngIf="exitingWish">
+          <div>
+            <div class="font-semibold">{{ exitingWish.name }}</div>
+            <div class="text-sm text-slate-600 dark:text-slate-300">{{ exitingWish.message }}</div>
+          </div>
+          <button class="like-btn" type="button" disabled>&#x1F496; {{ exitingWish.likes }}</button>
+        </div>
+        <div
+          class="wish-card"
+          *ngFor="let wish of visibleWishes"
+          [class.wish-enter]="wish.id === enteringWishId"
+        >
+          <div>
+            <div class="font-semibold">{{ wish.name }}</div>
+            <div class="text-sm text-slate-600 dark:text-slate-300">{{ wish.message }}</div>
+          </div>
+          <button
+            class="like-btn"
+            type="button"
+            [disabled]="isWishLiked(wish.id)"
+            [class.like-pulse]="shouldPulseLike(wish.id)"
+            (click)="likeWish(wish, $event)"
+          >
+            &#x1F496; {{ wish.likes }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="rsvp" class="max-w-6xl mx-auto px-4 py-16">
+    <div class="glass-card p-8 lg:p-10 space-y-8">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="section-title">RSVP Live</h2>
+          <p class="text-sm text-slate-600 dark:text-slate-300">
+            Data RSVP akan dihantar terus ke Supabase table bernama `rsvp`.
+          </p>
+        </div>
+        <span class="badge">Powered by Supabase</span>
+      </div>
+      <form class="grid lg:grid-cols-2 gap-6" (ngSubmit)="submitRsvp()">
+        <div>
+          <label class="label">Nama</label>
+          <input class="input" name="rsvpName" [(ngModel)]="rsvp.name" required />
+        </div>
+        <div>
+          <label class="label">Email</label>
+          <input class="input" type="email" name="rsvpEmail" [(ngModel)]="rsvp.email" required />
+        </div>
+        <div>
+          <label class="label">Jumlah Tetamu</label>
+          <input class="input" type="number" min="1" max="10" name="rsvpGuests" [(ngModel)]="rsvp.guests" required />
+        </div>
+        <div>
+          <label class="label">Kehadiran</label>
+          <div class="flex flex-wrap gap-3">
+            <label class="radio-pill">
+              <input type="radio" name="attendance" value="yes" [(ngModel)]="rsvp.attendance" />
+              Hadir
+            </label>
+            <label class="radio-pill">
+              <input type="radio" name="attendance" value="maybe" [(ngModel)]="rsvp.attendance" />
+              Mungkin
+            </label>
+            <label class="radio-pill">
+              <input type="radio" name="attendance" value="no" [(ngModel)]="rsvp.attendance" />
+              Tidak Hadir
+            </label>
+          </div>
+        </div>
+        <div class="lg:col-span-2">
+          <label class="label">Pesanan</label>
+          <textarea class="input h-28" name="rsvpMessage" [(ngModel)]="rsvp.message"></textarea>
+        </div>
+        <div class="lg:col-span-2 flex flex-wrap items-center gap-4">
+          <button class="btn-primary" type="submit" [disabled]="rsvpLoading">
+            {{ rsvpLoading ? 'Menghantar...' : 'Hantar RSVP' }}
+          </button>
+          <span class="text-sm text-rose-500" *ngIf="rsvpResult">{{ rsvpResult }}</span>
+          <div class="popup" *ngIf="rsvpPopup">{{ rsvpPopup }}</div>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <footer class="max-w-6xl mx-auto px-4 pb-24 text-sm text-slate-500 dark:text-slate-300 text-center">
+    Terima kasih atas doa dan kehadiran anda. &copy; {{ year }} {{ couple.groom }} &amp; {{ couple.bride }}.
+  </footer>
+
+  <nav class="floating-nav">
+    <a href="#home" (click)="goToSection('home', $event)">Home</a>
+    <a href="#details" (click)="goToSection('details', $event)">Details</a>
+    <a href="#wishes" (click)="goToSection('wishes', $event)">Wishes</a>
+    <a href="#rsvp" (click)="goToSection('rsvp', $event)">RSVP</a>
+  </nav>
+
+  <div class="pointer-events-none">
+    <span class="heart-float" *ngFor="let heart of heartBursts" [style.left.px]="heart.x" [style.top.px]="heart.y">
+      &#10084;
+    </span>
+  </div>
+</div>
