@@ -1,0 +1,6 @@
+.memories-page {
+  background:
+    radial-gradient(900px 420px at 12% -5%, rgba(251, 207, 232, 0.65), transparent 60%),
+    radial-gradient(880px 380px at 88% 2%, rgba(254, 205, 211, 0.62), transparent 58%),
+    linear-gradient(180deg, #fff6fb 0%, #fffaf6 46%, #fff1f6 100%);
+}

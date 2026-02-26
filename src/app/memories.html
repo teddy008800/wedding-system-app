@@ -1,0 +1,89 @@
+<div class="memories-page min-h-screen px-4 py-10">
+  <div class="max-w-6xl mx-auto space-y-8">
+    <header class="rounded-3xl border border-rose-200/70 bg-white/85 p-6 md:p-8 shadow-lg">
+      <div class="text-xs uppercase tracking-[0.35em] text-rose-600 font-semibold">Wedding Memories</div>
+      <div class="mt-2 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 class="text-3xl md:text-4xl font-semibold text-slate-900">{{ weddingLabel }}</h1>
+          <p class="text-sm text-slate-600 mt-1" *ngIf="weddingDate">{{ weddingDate }}</p>
+        </div>
+      </div>
+    </header>
+
+    <section class="grid lg:grid-cols-[0.88fr_1.12fr] gap-8">
+      <form class="rounded-3xl border border-rose-200/70 bg-white/90 p-6 space-y-4 shadow-lg" (ngSubmit)="submitMemory()">
+        <h2 class="text-xl font-semibold text-slate-900">Upload Your Memory</h2>
+        <p class="text-sm text-slate-600">Share your best photo/video moment from this wedding.</p>
+
+        <div>
+          <label class="label">Caption (Optional)</label>
+          <input class="input" name="caption" [(ngModel)]="uploadForm.caption" placeholder="Short caption..." />
+        </div>
+
+        <div>
+          <label class="label">Image / Video Files</label>
+          <input #memoriesFileInput id="memoriesFileInput" class="hidden" type="file" multiple accept="image/*,video/*" (change)="handleFileChange($event)" />
+          <div
+            class="mt-2 flex min-h-[170px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-rose-200 bg-white/70 p-6 text-center transition"
+            [ngClass]="isDragOver ? 'border-rose-400 bg-rose-50' : ''"
+            (dragover)="handleDragOver($event)"
+            (dragleave)="handleDragLeave($event)"
+            (drop)="handleDrop($event)"
+            (click)="openPicker(memoriesFileInput)"
+            role="button"
+            tabindex="0"
+          >
+            <div class="text-sm font-semibold text-slate-700">Drag & drop files here</div>
+            <div class="mt-1 text-xs text-slate-500">or click to select files</div>
+            <div class="mt-3 text-xs text-slate-500" *ngIf="uploadForm.files.length">
+              {{ uploadForm.files.length }} file(s) selected
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-primary w-full" type="submit" [disabled]="actionLoading || !uploadForm.files.length">
+          Upload Memory
+        </button>
+        <div class="popup" *ngIf="uploadPopup">{{ uploadPopup }}</div>
+      </form>
+
+      <div class="rounded-3xl border border-rose-200/70 bg-white/90 p-6 shadow-lg">
+        <div class="flex items-center justify-between gap-2 mb-4">
+          <h2 class="text-xl font-semibold text-slate-900">Our Memory Wall</h2>
+          <span class="text-sm text-slate-500">{{ rows.length }} items</span>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-4 max-h-[620px] overflow-auto pr-1">
+          <article class="rounded-2xl border border-rose-200/70 bg-rose-50/45 p-3 space-y-2" *ngFor="let row of rows">
+            <img
+              *ngIf="row.media_type === 'image'"
+              [src]="row.drive_direct_url || row.drive_view_url"
+              [alt]="row.caption || 'Wedding memory image'"
+              class="h-44 w-full rounded-xl object-cover"
+            />
+            <video
+              *ngIf="row.media_type === 'video'"
+              [src]="row.drive_direct_url || row.drive_view_url"
+              controls
+              playsinline
+              class="h-44 w-full rounded-xl object-cover bg-black"
+            ></video>
+            <div class="text-sm font-semibold text-slate-900">Guest Memory</div>
+            <div class="text-xs text-slate-600">{{ row.caption || '-' }}</div>
+          </article>
+
+          <div class="text-sm text-slate-500" *ngIf="!rows.length">
+            No memories uploaded yet. Be the first to upload.
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="fixed inset-0 z-[70] grid place-items-center bg-slate-900/45 backdrop-blur-sm" *ngIf="actionLoading">
+    <div class="rounded-2xl border border-rose-200/70 bg-white px-6 py-4 text-center shadow-xl">
+      <div class="h-6 w-6 mx-auto mb-2 animate-spin rounded-full border-2 border-rose-200 border-t-rose-500"></div>
+      <div class="text-sm font-semibold text-slate-900">{{ actionLoadingText }}</div>
+    </div>
+  </div>
+</div>

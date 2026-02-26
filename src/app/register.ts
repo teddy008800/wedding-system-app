@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { environment } from '../environments/environment';
 
 declare const supabase: {
   createClient: (url: string, key: string, options?: any) => any;
@@ -39,8 +40,8 @@ export class RegisterComponent implements OnInit {
   };
 
   private supabaseClient: any | null = null;
-  private readonly supabaseUrl = 'https://sksxlvhyjkimyiiaxwtz.supabase.co';
-  private readonly supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrc3hsdmh5amtpbXlpaWF4d3R6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2OTQ1NTgsImV4cCI6MjA4NjI3MDU1OH0.wLYx_vlp6jNaW1jN82Ee9dL864kULIUkEc0c7Ruf2ig';
+  private readonly supabaseUrl = environment.supabase.url;
+  private readonly supabaseAnonKey = environment.supabase.anonKey;
 
   ngOnInit(): void {
     if (this.supabaseUrl.startsWith('http') && this.supabaseAnonKey.length > 20 && typeof supabase !== 'undefined') {

@@ -8,6 +8,7 @@ import { AdminComponent } from './admin';
 import { RegisterComponent } from './register';
 import { LandingComponent } from './landing';
 import { RsvpViewComponent } from './rsvp-view';
+import { MemoriesComponent } from './memories';
 
 @NgModule({
   declarations: [
@@ -15,7 +16,8 @@ import { RsvpViewComponent } from './rsvp-view';
     AdminComponent,
     RegisterComponent,
     LandingComponent,
-    RsvpViewComponent
+    RsvpViewComponent,
+    MemoriesComponent
   ],
   imports: [
     BrowserModule,
