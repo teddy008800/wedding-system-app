@@ -32,32 +32,13 @@ function verifyState(state, secret) {
 }
 
 async function upsertRefreshToken(supabaseUrl, serviceRoleKey, refreshToken) {
-  const response = await fetch(`${supabaseUrl}/rest/v1/google_oauth_tokens?id=eq.drive_uploader`, {
-    method: 'PATCH',
-    headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=minimal'
-    },
-    body: JSON.stringify({
-      refresh_token: refreshToken,
-      provider: 'google',
-      updated_at: new Date().toISOString()
-    })
-  });
-
-  if (response.ok) {
-    return true;
-  }
-
-  const insertResp = await fetch(`${supabaseUrl}/rest/v1/google_oauth_tokens`, {
+  const upsertResp = await fetch(`${supabaseUrl}/rest/v1/google_oauth_tokens`, {
     method: 'POST',
     headers: {
       apikey: serviceRoleKey,
       Authorization: `Bearer ${serviceRoleKey}`,
       'Content-Type': 'application/json',
-      Prefer: 'return=minimal'
+      Prefer: 'resolution=merge-duplicates,return=minimal'
     },
     body: JSON.stringify({
       id: 'drive_uploader',
@@ -67,7 +48,7 @@ async function upsertRefreshToken(supabaseUrl, serviceRoleKey, refreshToken) {
     })
   });
 
-  return insertResp.ok;
+  return upsertResp.ok;
 }
 
 export default async function handler(req, res) {
