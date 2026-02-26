@@ -123,7 +123,7 @@ export class MemoriesComponent implements OnInit {
 
         this.actionLoadingText = `Uploading ${index + 1}/${this.uploadForm.files.length}...`;
         const base64Data = await this.fileToBase64(file);
-        const response = await fetch('/api/upload-to-drive', {
+        const response = await fetch('/api/google/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
