@@ -238,6 +238,7 @@ export class LandingComponent implements OnInit, OnDestroy {
   private countdownTargetMs: number | null = null;
   private routerSub?: { unsubscribe: () => void };
   private autoplayListenersAttached = false;
+  private manualAudioPaused = false;
   private readonly autoplayEvents: Array<keyof WindowEventMap> = ['click', 'touchend', 'keydown'];
   private readonly defaultWeddingState = {
     couple: {
@@ -315,8 +316,10 @@ export class LandingComponent implements OnInit, OnDestroy {
     }
 
     if (audio.paused) {
+      this.manualAudioPaused = false;
       void this.safePlayAudio(audio);
     } else {
+      this.manualAudioPaused = true;
       audio.pause();
       this.audioEnabled = false;
       this.audioPlaying = false;
@@ -493,6 +496,9 @@ export class LandingComponent implements OnInit, OnDestroy {
     if (!audio || !this.nasheedUrl) {
       return;
     }
+    if (this.manualAudioPaused) {
+      return;
+    }
 
     if (!this.audioEnabled) {
       return;
@@ -508,6 +514,9 @@ export class LandingComponent implements OnInit, OnDestroy {
     }
 
     this.scrollResumeId = window.setTimeout(() => {
+      if (this.manualAudioPaused) {
+        return;
+      }
       void this.safePlayAudio(audio);
     }, 800);
   }
@@ -816,12 +825,13 @@ export class LandingComponent implements OnInit, OnDestroy {
     this.syncAudioSource();
     this.audioEnabled = false;
     this.audioPlaying = false;
+    this.manualAudioPaused = false;
     this.year = new Date().getFullYear();
   }
 
   private async tryAutoPlayNasheed(): Promise<void> {
     const audio = this.nasheed?.nativeElement;
-    if (!audio || !this.nasheedUrl) {
+    if (!audio || !this.nasheedUrl || this.manualAudioPaused) {
       return;
     }
     const played = await this.safePlayAudio(audio);
@@ -862,7 +872,7 @@ export class LandingComponent implements OnInit, OnDestroy {
   }
 
   private readonly onAutoplayInteraction = (): void => {
-    if (!this.nasheedUrl) {
+    if (!this.nasheedUrl || this.manualAudioPaused) {
       return;
     }
     void this.tryAutoPlayNasheed();
