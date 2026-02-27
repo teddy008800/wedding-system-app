@@ -59,10 +59,10 @@
               *ngIf="isImageRow(row)"
               class="block w-full rounded-xl overflow-hidden bg-white/70 border border-rose-100"
               type="button"
-              (click)="openPreview('image', row.drive_direct_url || row.drive_view_url)"
+              (click)="openPreview('image', getImageUrl(row, true))"
             >
               <img
-                [src]="row.drive_direct_url || row.drive_view_url"
+                [src]="getImageUrl(row)"
                 [alt]="row.caption || 'Wedding memory image'"
                 class="w-full h-auto object-contain"
                 loading="lazy"
@@ -72,15 +72,19 @@
               *ngIf="isVideoRow(row)"
               class="block w-full rounded-xl overflow-hidden bg-black border border-rose-100"
               type="button"
-              (click)="openPreview('video', row.drive_direct_url || row.drive_view_url)"
+              (click)="openPreview('video', getVideoPreviewUrl(row))"
             >
-              <video
-                [src]="row.drive_direct_url || row.drive_view_url"
-                muted
-                playsinline
-                preload="metadata"
-                class="w-full h-auto object-contain"
-              ></video>
+              <div class="relative">
+                <img
+                  [src]="getVideoPosterUrl(row)"
+                  [alt]="row.caption || 'Wedding memory video'"
+                  class="w-full h-auto object-contain"
+                  loading="lazy"
+                />
+                <span class="absolute inset-0 grid place-items-center">
+                  <span class="rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white">Play</span>
+                </span>
+              </div>
             </button>
             <div class="text-sm font-semibold text-slate-900">Guest Memory</div>
             <div class="text-xs text-slate-600">{{ row.caption || '-' }}</div>
@@ -113,14 +117,14 @@
           alt="Full image preview"
           class="max-w-full h-auto object-contain"
         />
-        <video
+        <iframe
           *ngIf="previewModal.type === 'video'"
           [src]="previewModal.url"
-          controls
-          autoplay
-          playsinline
-          class="max-w-full h-auto object-contain"
-        ></video>
+          class="w-full min-h-[60vh] rounded-xl bg-black"
+          allow="autoplay; encrypted-media; picture-in-picture"
+          allowfullscreen
+          referrerpolicy="strict-origin-when-cross-origin"
+        ></iframe>
       </div>
     </div>
   </div>

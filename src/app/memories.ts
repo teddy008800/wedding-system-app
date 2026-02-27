@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { environment } from '../environments/environment';
 
 declare const supabase: {
@@ -37,7 +38,7 @@ export class MemoriesComponent implements OnInit {
   protected previewModal = {
     open: false,
     type: '' as 'image' | 'video' | '',
-    url: ''
+    url: '' as string | SafeResourceUrl
   };
   protected uploadForm = {
     caption: '',
@@ -57,7 +58,7 @@ export class MemoriesComponent implements OnInit {
     'mp4', 'mov', 'm4v', 'webm', 'ogg', 'ogv', 'avi', 'mkv'
   ]);
 
-  constructor(private route: ActivatedRoute, private router: Router) {}
+  constructor(private route: ActivatedRoute, private router: Router, private sanitizer: DomSanitizer) {}
 
   ngOnInit(): void {
     if (this.supabaseUrl.startsWith('http') && this.supabaseAnonKey.length > 20 && typeof supabase !== 'undefined') {
@@ -243,7 +244,7 @@ export class MemoriesComponent implements OnInit {
     this.previewModal = {
       open: true,
       type,
-      url
+      url: type === 'video' ? this.sanitizer.bypassSecurityTrustResourceUrl(url) : url
     };
   }
 
@@ -278,6 +279,30 @@ export class MemoriesComponent implements OnInit {
     return !this.isImageRow(row);
   }
 
+  protected getImageUrl(row: GuestMemoryRow, full = false): string {
+    const fileId = this.extractDriveFileId(row);
+    if (fileId) {
+      return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=${full ? 'w4000' : 'w1600'}`;
+    }
+    return row.drive_direct_url || row.drive_view_url || '';
+  }
+
+  protected getVideoPosterUrl(row: GuestMemoryRow): string {
+    const fileId = this.extractDriveFileId(row);
+    if (fileId) {
+      return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1600`;
+    }
+    return '';
+  }
+
+  protected getVideoPreviewUrl(row: GuestMemoryRow): string {
+    const fileId = this.extractDriveFileId(row);
+    if (fileId) {
+      return `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/preview`;
+    }
+    return row.drive_view_url || row.drive_direct_url || '';
+  }
+
   private async runWithLock(label: string, action: () => Promise<void>): Promise<void> {
     if (this.actionLoading) {
       return;
@@ -309,5 +334,26 @@ export class MemoriesComponent implements OnInit {
       return '';
     }
     return name.slice(idx + 1).toLowerCase();
+  }
+
+  private extractDriveFileId(row: GuestMemoryRow): string {
+    const direct = String(row.drive_direct_url || '');
+    const view = String(row.drive_view_url || '');
+
+    const idFromQuery = (url: string): string => {
+      try {
+        const parsed = new URL(url);
+        return parsed.searchParams.get('id') || '';
+      } catch {
+        return '';
+      }
+    };
+
+    const idFromPath = (url: string): string => {
+      const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      return match?.[1] || '';
+    };
+
+    return idFromQuery(direct) || idFromPath(view) || '';
   }
 }
