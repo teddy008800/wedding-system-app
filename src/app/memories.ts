@@ -12,6 +12,8 @@ interface GuestMemoryRow {
   guest_name: string;
   caption: string | null;
   media_type: 'image' | 'video';
+  file_extension?: string | null;
+  mime_type?: string | null;
   drive_direct_url: string;
   drive_view_url: string;
   created_at: string;
@@ -32,6 +34,11 @@ export class MemoriesComponent implements OnInit {
   protected actionLoading = false;
   protected actionLoadingText = 'Processing...';
   protected uploadPopup = '';
+  protected previewModal = {
+    open: false,
+    type: '' as 'image' | 'video' | '',
+    url: ''
+  };
   protected uploadForm = {
     caption: '',
     files: [] as File[]
@@ -43,6 +50,12 @@ export class MemoriesComponent implements OnInit {
   private readonly supabaseAnonKey = environment.supabase.anonKey;
   private currentWeddingId: string | null = null;
   private popupTimer: number | null = null;
+  private readonly allowedImageExtensions = new Set([
+    'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'heic', 'heif', 'tif', 'tiff', 'avif'
+  ]);
+  private readonly allowedVideoExtensions = new Set([
+    'mp4', 'mov', 'm4v', 'webm', 'ogg', 'ogv', 'avi', 'mkv'
+  ]);
 
   constructor(private route: ActivatedRoute, private router: Router) {}
 
@@ -114,8 +127,10 @@ export class MemoriesComponent implements OnInit {
 
       for (let index = 0; index < this.uploadForm.files.length; index += 1) {
         const file = this.uploadForm.files[index];
-        const isImage = file.type.startsWith('image/');
-        const isVideo = file.type.startsWith('video/');
+        const ext = this.getFileExtension(file.name);
+        const mime = String(file.type || '').toLowerCase();
+        const isImage = mime.startsWith('image/') || this.allowedImageExtensions.has(ext);
+        const isVideo = mime.startsWith('video/') || this.allowedVideoExtensions.has(ext);
         if (!isImage && !isVideo) {
           this.showPopup(`Unsupported file type: ${file.name}`);
           return;
@@ -145,6 +160,7 @@ export class MemoriesComponent implements OnInit {
           guest_name: 'Guest',
           caption: this.uploadForm.caption.trim() || null,
           media_type: mediaType,
+          file_extension: ext || null,
           drive_file_id: payload.fileId,
           drive_view_url: payload.webViewLink,
           drive_direct_url: payload.directUrl,
@@ -223,6 +239,45 @@ export class MemoriesComponent implements OnInit {
     }, 2600);
   }
 
+  protected openPreview(type: 'image' | 'video', url: string): void {
+    this.previewModal = {
+      open: true,
+      type,
+      url
+    };
+  }
+
+  protected closePreview(): void {
+    this.previewModal = {
+      open: false,
+      type: '',
+      url: ''
+    };
+  }
+
+  protected isImageRow(row: GuestMemoryRow): boolean {
+    const mediaType = String(row.media_type || '').toLowerCase();
+    if (mediaType === 'image') {
+      return true;
+    }
+    if (mediaType === 'video') {
+      return false;
+    }
+    const mime = String(row.mime_type || '').toLowerCase();
+    if (mime.startsWith('image/')) {
+      return true;
+    }
+    if (mime.startsWith('video/')) {
+      return false;
+    }
+    const ext = String(row.file_extension || '').toLowerCase();
+    return this.allowedImageExtensions.has(ext);
+  }
+
+  protected isVideoRow(row: GuestMemoryRow): boolean {
+    return !this.isImageRow(row);
+  }
+
   private async runWithLock(label: string, action: () => Promise<void>): Promise<void> {
     if (this.actionLoading) {
       return;
@@ -246,5 +301,13 @@ export class MemoriesComponent implements OnInit {
       binary += String.fromCharCode(...chunk);
     }
     return btoa(binary);
+  }
+
+  private getFileExtension(name: string): string {
+    const idx = name.lastIndexOf('.');
+    if (idx < 0 || idx === name.length - 1) {
+      return '';
+    }
+    return name.slice(idx + 1).toLowerCase();
   }
 }

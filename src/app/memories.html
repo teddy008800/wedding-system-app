@@ -55,19 +55,33 @@
 
         <div class="grid sm:grid-cols-2 gap-4 max-h-[620px] overflow-auto pr-1">
           <article class="rounded-2xl border border-rose-200/70 bg-rose-50/45 p-3 space-y-2" *ngFor="let row of rows">
-            <img
-              *ngIf="row.media_type === 'image'"
-              [src]="row.drive_direct_url || row.drive_view_url"
-              [alt]="row.caption || 'Wedding memory image'"
-              class="h-44 w-full rounded-xl object-cover"
-            />
-            <video
-              *ngIf="row.media_type === 'video'"
-              [src]="row.drive_direct_url || row.drive_view_url"
-              controls
-              playsinline
-              class="h-44 w-full rounded-xl object-cover bg-black"
-            ></video>
+            <button
+              *ngIf="isImageRow(row)"
+              class="block w-full rounded-xl overflow-hidden bg-white/70 border border-rose-100"
+              type="button"
+              (click)="openPreview('image', row.drive_direct_url || row.drive_view_url)"
+            >
+              <img
+                [src]="row.drive_direct_url || row.drive_view_url"
+                [alt]="row.caption || 'Wedding memory image'"
+                class="w-full h-auto object-contain"
+                loading="lazy"
+              />
+            </button>
+            <button
+              *ngIf="isVideoRow(row)"
+              class="block w-full rounded-xl overflow-hidden bg-black border border-rose-100"
+              type="button"
+              (click)="openPreview('video', row.drive_direct_url || row.drive_view_url)"
+            >
+              <video
+                [src]="row.drive_direct_url || row.drive_view_url"
+                muted
+                playsinline
+                preload="metadata"
+                class="w-full h-auto object-contain"
+              ></video>
+            </button>
             <div class="text-sm font-semibold text-slate-900">Guest Memory</div>
             <div class="text-xs text-slate-600">{{ row.caption || '-' }}</div>
           </article>
@@ -84,6 +98,30 @@
     <div class="rounded-2xl border border-rose-200/70 bg-white px-6 py-4 text-center shadow-xl">
       <div class="h-6 w-6 mx-auto mb-2 animate-spin rounded-full border-2 border-rose-200 border-t-rose-500"></div>
       <div class="text-sm font-semibold text-slate-900">{{ actionLoadingText }}</div>
+    </div>
+  </div>
+
+  <div class="fixed inset-0 z-[80] grid place-items-center bg-slate-900/75 p-4" *ngIf="previewModal.open">
+    <div class="w-[min(96vw,980px)] max-h-[92vh] rounded-2xl bg-black/90 border border-rose-200/30 p-3 md:p-4">
+      <div class="flex justify-end mb-2">
+        <button class="btn-outline !text-white !border-white/40" type="button" (click)="closePreview()">Close</button>
+      </div>
+      <div class="max-h-[82vh] overflow-auto grid place-items-center">
+        <img
+          *ngIf="previewModal.type === 'image'"
+          [src]="previewModal.url"
+          alt="Full image preview"
+          class="max-w-full h-auto object-contain"
+        />
+        <video
+          *ngIf="previewModal.type === 'video'"
+          [src]="previewModal.url"
+          controls
+          autoplay
+          playsinline
+          class="max-w-full h-auto object-contain"
+        ></video>
+      </div>
     </div>
   </div>
 </div>

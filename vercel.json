@@ -3,7 +3,14 @@
   "outputDirectory": "dist/WeddingAqilSyafiqah/browser",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
+      "has": [
+        {
+          "type": "header",
+          "key": "accept",
+          "value": ".*text/html.*"
+        }
+      ],
       "destination": "/index.html"
     }
   ]

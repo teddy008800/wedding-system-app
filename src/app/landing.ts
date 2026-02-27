@@ -30,14 +30,6 @@ interface GalleryItem {
   weddingId?: string | null;
 }
 
-interface GuestMemory {
-  id: string;
-  guestName: string;
-  caption: string | null;
-  mediaType: 'image' | 'video';
-  mediaUrl: string;
-  createdAt: string;
-}
 
 @Component({
   selector: 'app-landing',
@@ -148,13 +140,6 @@ export class LandingComponent implements OnInit, OnDestroy {
       createdAt: new Date().toISOString()
     }
   ];
-  protected guestMemories: GuestMemory[] = [];
-  protected guestUpload = {
-    guestName: '',
-    caption: '',
-    file: null as File | null
-  };
-  protected guestUploadPopup = '';
 
   protected rsvp = {
     name: '',
@@ -502,89 +487,6 @@ export class LandingComponent implements OnInit, OnDestroy {
     });
   }
 
-  protected handleGuestMemoryFile(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    this.guestUpload.file = input.files?.[0] ?? null;
-  }
-
-  protected async submitGuestMemory(): Promise<void> {
-    if (this.actionLoading) {
-      return;
-    }
-    if (!this.currentSlug || !this.currentWeddingId) {
-      this.showGuestUploadPopup('Upload hanya tersedia pada halaman wedding /:slug');
-      return;
-    }
-    if (!this.guestUpload.guestName.trim() || !this.guestUpload.file) {
-      this.showGuestUploadPopup('Sila isi nama dan pilih fail.');
-      return;
-    }
-
-    const file = this.guestUpload.file;
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    if (!isImage && !isVideo) {
-      this.showGuestUploadPopup('Hanya image/video dibenarkan.');
-      return;
-    }
-
-    this.actionLoadingText = 'Uploading memory...';
-    await this.runWithActionLock(async () => {
-      try {
-        const base64Data = await this.fileToBase64(file);
-        const uploadResp = await fetch('/api/upload-to-drive', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            guestName: this.guestUpload.guestName.trim(),
-            fileName: `${Date.now()}-${file.name}`,
-            mimeType: file.type,
-            base64Data
-          })
-        });
-
-        const uploadPayload = await uploadResp.json().catch(() => ({}));
-        if (!uploadResp.ok || !uploadPayload?.ok) {
-          this.showGuestUploadPopup(uploadPayload?.error || 'Upload gagal ke Google Drive.');
-          return;
-        }
-
-        if (!this.supabaseClient) {
-          this.showGuestUploadPopup('Data service unavailable.');
-          return;
-        }
-
-        const mediaType = isVideo ? 'video' : 'image';
-        const insertPayload = {
-          wedding_id: this.currentWeddingId,
-          guest_name: this.guestUpload.guestName.trim(),
-          caption: this.guestUpload.caption.trim() || null,
-          media_type: mediaType,
-          drive_file_id: uploadPayload.fileId,
-          drive_view_url: uploadPayload.webViewLink,
-          drive_direct_url: uploadPayload.directUrl,
-          mime_type: file.type,
-          status: 'approved',
-          created_at: new Date().toISOString()
-        };
-
-        const { error } = await this.supabaseClient.from('guest_memories').insert(insertPayload);
-        if (error) {
-          this.showGuestUploadPopup('Upload berjaya tetapi gagal simpan rekod.');
-          return;
-        }
-
-        this.guestUpload = { guestName: '', caption: '', file: null };
-        this.showGuestUploadPopup('Memori berjaya dimuat naik!');
-        await this.loadGuestMemories();
-      } catch {
-        this.showGuestUploadPopup('Upload gagal. Sila cuba lagi.');
-      }
-    });
-  }
-
   @HostListener('window:scroll')
   protected handleScroll(): void {
     const audio = this.nasheed?.nativeElement;
@@ -715,7 +617,6 @@ export class LandingComponent implements OnInit, OnDestroy {
       this.loadWishes();
       this.loadLikes();
       this.loadGallery();
-      this.loadGuestMemories();
       this.subscribeRealtime();
     }
   }
@@ -844,37 +745,6 @@ export class LandingComponent implements OnInit, OnDestroy {
         };
       });
     }
-  }
-
-  private async loadGuestMemories(): Promise<void> {
-    if (!this.supabaseClient) {
-      return;
-    }
-    if (!this.currentSlug || !this.currentWeddingId) {
-      this.guestMemories = [];
-      return;
-    }
-
-    const { data, error } = await this.supabaseClient
-      .from('guest_memories')
-      .select('*')
-      .eq('wedding_id', this.currentWeddingId)
-      .eq('status', 'approved')
-      .order('created_at', { ascending: false });
-
-    if (error || !data) {
-      this.guestMemories = [];
-      return;
-    }
-
-    this.guestMemories = data.map((row: any) => ({
-      id: row.id,
-      guestName: row.guest_name ?? 'Guest',
-      caption: row.caption ?? null,
-      mediaType: row.media_type === 'video' ? 'video' : 'image',
-      mediaUrl: row.drive_direct_url || row.drive_view_url || '',
-      createdAt: row.created_at ?? new Date().toISOString()
-    }));
   }
 
   private async loadWeddingBySlug(slug: string): Promise<void> {
@@ -1135,13 +1005,11 @@ export class LandingComponent implements OnInit, OnDestroy {
     }
     this.wishes = [];
     this.galleryItems = [];
-    this.guestMemories = [];
     this.visibleStart = 0;
     this.exitingWish = null;
     this.enteringWishId = null;
     this.loadWishes();
     this.loadGallery();
-    this.loadGuestMemories();
   }
 
   private startWishCycle(): void {
@@ -1225,28 +1093,6 @@ export class LandingComponent implements OnInit, OnDestroy {
         this.rsvpPopup = '';
       }
     }, 2600);
-  }
-
-  private showGuestUploadPopup(message: string): void {
-    this.guestUploadPopup = message;
-    if (this.popupTimer) {
-      window.clearTimeout(this.popupTimer);
-    }
-    this.popupTimer = window.setTimeout(() => {
-      this.guestUploadPopup = '';
-    }, 2600);
-  }
-
-  private async fileToBase64(file: File): Promise<string> {
-    const buffer = await file.arrayBuffer();
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      const chunk = bytes.subarray(i, i + chunkSize);
-      binary += String.fromCharCode(...chunk);
-    }
-    return btoa(binary);
   }
 
   private async runWithActionLock(action: () => Promise<void>): Promise<void> {

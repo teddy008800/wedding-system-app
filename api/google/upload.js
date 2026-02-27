@@ -17,6 +17,15 @@ async function getStoredRefreshToken(supabaseUrl, serviceRoleKey) {
   return String(rows?.[0]?.refresh_token || '');
 }
 
+function getFileExtension(name) {
+  const clean = String(name || '').trim();
+  const idx = clean.lastIndexOf('.');
+  if (idx < 0 || idx >= clean.length - 1) {
+    return '';
+  }
+  return clean.slice(idx + 1).toLowerCase();
+}
+
 async function getAccessTokenFromRefreshToken(clientId, clientSecret, refreshToken) {
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -90,8 +99,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'fileName, mimeType, base64Data are required' });
     }
 
-    const isImage = mimeType.startsWith('image/');
-    const isVideo = mimeType.startsWith('video/');
+    const ext = getFileExtension(fileName);
+    const imageExt = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'heic', 'heif', 'tif', 'tiff', 'avif']);
+    const videoExt = new Set(['mp4', 'mov', 'm4v', 'webm', 'ogg', 'ogv', 'avi', 'mkv']);
+    const isImage = mimeType.startsWith('image/') || imageExt.has(ext);
+    const isVideo = mimeType.startsWith('video/') || videoExt.has(ext);
     if (!isImage && !isVideo) {
       return res.status(400).json({ error: 'Only image/* or video/* uploads are allowed' });
     }

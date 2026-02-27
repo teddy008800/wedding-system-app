@@ -5,6 +5,7 @@ create table if not exists public.guest_memories (
   guest_name text not null default 'Guest',
   caption text null,
   media_type text not null check (media_type in ('image', 'video')),
+  file_extension text null,
   drive_file_id text not null,
   drive_view_url text not null,
   drive_direct_url text not null,
@@ -12,6 +13,9 @@ create table if not exists public.guest_memories (
   status text not null default 'approved' check (status in ('pending', 'approved', 'rejected')),
   created_at timestamptz not null default now()
 );
+
+alter table public.guest_memories
+  add column if not exists file_extension text null;
 
 alter table public.guest_memories
   alter column guest_name set default 'Guest';
