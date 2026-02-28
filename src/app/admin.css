@@ -145,7 +145,7 @@
 }
 
 .wish-row {
-  grid-template-columns: 1.4fr 2.2fr 0.7fr auto;
+  grid-template-columns: 1.2fr 1.1fr 2.1fr 0.7fr auto;
 }
 
 .gallery-row {

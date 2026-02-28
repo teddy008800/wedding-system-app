@@ -189,6 +189,7 @@
         <div class="admin-table">
           <div class="admin-row admin-head wish-row">
             <div>Guest</div>
+            <div>Slug</div>
             <div>Message</div>
             <div>Likes</div>
             <div class="actions-col">Actions</div>
@@ -203,6 +204,7 @@
               <div class="admin-strong">{{ row.name }}</div>
               <div class="admin-subtle">Created: {{ row.created_at | date:'mediumDate' }}</div>
             </div>
+            <div class="admin-strong">{{ getWeddingSlug(row.wedding_id) }}</div>
             <div class="admin-truncate">{{ row.message }}</div>
             <div class="admin-pill">{{ getLikeCount(row.id) }}</div>
             <div class="admin-row-actions actions-col">

@@ -20,6 +20,7 @@ interface WishRow {
   id: string;
   name: string;
   message: string;
+  wedding_id: string | null;
   created_at: string;
 }
 
@@ -327,7 +328,9 @@ export class AdminComponent implements OnInit, OnDestroy {
       return this.wishRows;
     }
     return this.wishRows.filter((row) =>
-      [row.name, row.message].some((value) => value.toLowerCase().includes(term))
+      [row.name, row.message, this.getWeddingSlug(row.wedding_id)].some((value) =>
+        value.toLowerCase().includes(term)
+      )
     );
   }
 
