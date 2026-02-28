@@ -145,7 +145,18 @@
 }
 
 .wish-row {
-  grid-template-columns: 1.2fr 1.1fr 2.1fr 0.7fr auto;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 2fr) 88px 150px;
+}
+
+.wish-row .likes-col {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  justify-self: center;
+}
+
+.wish-row .actions-col {
+  justify-self: end;
 }
 
 .gallery-row {
@@ -389,6 +400,11 @@
   .nasheed-row > .admin-pill {
     width: fit-content;
     max-width: max-content;
+  }
+
+  .wish-row .likes-col {
+    justify-content: flex-start;
+    justify-self: start;
   }
 
   .actions-col {

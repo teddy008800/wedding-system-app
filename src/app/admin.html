@@ -191,7 +191,7 @@
             <div>Guest</div>
             <div>Slug</div>
             <div>Message</div>
-            <div>Likes</div>
+            <div class="likes-col">Likes</div>
             <div class="actions-col">Actions</div>
           </div>
           <div
@@ -206,7 +206,9 @@
             </div>
             <div class="admin-strong">{{ getWeddingSlug(row.wedding_id) }}</div>
             <div class="admin-truncate">{{ row.message }}</div>
-            <div class="admin-pill">{{ getLikeCount(row.id) }}</div>
+            <div class="likes-col">
+              <span class="admin-pill">{{ getLikeCount(row.id) }}</span>
+            </div>
             <div class="admin-row-actions actions-col">
               <button class="icon-btn icon-view" type="button" (click)="toggleWishDetails(row.id)" aria-label="View">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 9 5 9 7s-4 7-9 7-9-5-9-7 4-7 9-7Zm0 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg>
