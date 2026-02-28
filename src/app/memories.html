@@ -105,22 +105,22 @@
     </div>
   </div>
 
-  <div class="fixed inset-0 z-[80] grid place-items-center bg-slate-900/75" *ngIf="previewModal.open">
-    <div class="w-[min(96vw,980px)] max-h-[92vh] rounded-2xl bg-white border border-rose-200/60 p-3 md:p-4">
+  <div class="fixed inset-0 z-[80] grid place-items-center overflow-hidden bg-slate-900/75" *ngIf="previewModal.open">
+    <div class="w-[min(96vw,980px)] h-[min(92vh,860px)] rounded-2xl bg-white border border-rose-200/60 p-3 md:p-4 flex flex-col overflow-hidden">
       <div class="flex justify-end mb-2">
         <button class="btn-outline text-slate-900" type="button" (click)="closePreview()">Close</button>
       </div>
-      <div class="max-h-[82vh] overflow-auto grid place-items-center">
+      <div class="flex-1 min-h-0 overflow-auto grid place-items-center">
         <img
           *ngIf="previewModal.type === 'image'"
           [src]="previewModal.url"
           alt="Full image preview"
-          class="max-w-full h-auto object-contain"
+          class="max-w-full max-h-full w-auto h-auto object-contain rounded-xl"
         />
         <iframe
           *ngIf="previewModal.type === 'video'"
           [src]="previewModal.url"
-          class="w-full min-h-[60vh] rounded-xl bg-black"
+          class="w-full h-full rounded-xl bg-black"
           allow="autoplay; encrypted-media; picture-in-picture"
           allowfullscreen
           referrerpolicy="strict-origin-when-cross-origin"
