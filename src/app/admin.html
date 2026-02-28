@@ -111,15 +111,16 @@
           <span class="admin-badge">{{ rsvpRows.length }} rows</span>
         </div>
         <div class="admin-table">
-          <div class="admin-row admin-head">
+          <div class="admin-row admin-head rsvp-row">
             <div>Guest</div>
             <div>Contact</div>
+            <div>Slug</div>
             <div>Guests</div>
             <div>Attendance</div>
             <div>Actions</div>
           </div>
           <div
-            class="admin-row"
+            class="admin-row rsvp-row"
             *ngFor="let row of pagedRsvpRows"
             (click)="selectRow('rsvp', row.id)"
             [ngClass]="selectedRsvpId === row.id ? 'ring-2 ring-rose-300/70 shadow-lg' : ''"
@@ -132,6 +133,7 @@
               <div class="admin-strong">{{ row.email }}</div>
               <div class="admin-subtle">Created: {{ row.created_at | date:'mediumDate' }}</div>
             </div>
+            <div class="admin-strong">{{ getWeddingSlug(row.wedding_id) }}</div>
             <div class="admin-pill">{{ row.guests }}</div>
             <div class="admin-pill">{{ row.attendance }}</div>
             <div class="admin-row-actions">

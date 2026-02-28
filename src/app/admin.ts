@@ -8,6 +8,7 @@ declare const supabase: {
 
 interface RsvpRow {
   id: string;
+  wedding_id: string | null;
   name: string;
   email: string;
   guests: number;
@@ -316,7 +317,7 @@ export class AdminComponent implements OnInit, OnDestroy {
       return this.rsvpRows;
     }
     return this.rsvpRows.filter((row) =>
-      [row.name, row.email, row.attendance, row.message ?? ''].some((value) =>
+      [row.name, row.email, row.attendance, row.message ?? '', this.getWeddingSlug(row.wedding_id)].some((value) =>
         value.toLowerCase().includes(term)
       )
     );
