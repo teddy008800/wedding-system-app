@@ -615,17 +615,17 @@
     <div class="mb-2 flex justify-end">
       <button class="btn-outline text-slate-900" type="button" (click)="closeMemoryPreview()">Close</button>
     </div>
-    <div class="max-h-[82vh] overflow-auto grid place-items-center">
+    <div class="h-[min(82vh,760px)] w-full overflow-hidden grid place-items-center">
       <img
         *ngIf="viewingMemory?.type === 'image'"
         [src]="viewingMemory!.url"
         alt="Guest memory"
-        class="max-w-full h-auto object-contain"
+        class="max-w-full max-h-full w-auto h-auto object-contain rounded-xl"
       />
       <iframe
         *ngIf="viewingMemory?.type === 'video'"
         [src]="viewingMemory!.url"
-        class="w-full min-h-[60vh] rounded-xl bg-black"
+        class="w-full max-w-[920px] h-full rounded-xl bg-black"
         allow="autoplay; encrypted-media; picture-in-picture"
         allowfullscreen
         referrerpolicy="strict-origin-when-cross-origin"
