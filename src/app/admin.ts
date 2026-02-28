@@ -1,4 +1,5 @@
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { environment } from '../environments/environment';
 
 declare const supabase: {
@@ -55,6 +56,19 @@ interface WeddingRow {
   created_at: string;
 }
 
+interface GuestMemoryAdminRow {
+  id: string;
+  wedding_id: string | null;
+  wedding_slug: string;
+  caption: string | null;
+  media_type: 'image' | 'video';
+  file_extension: string | null;
+  drive_file_id: string;
+  drive_view_url: string;
+  drive_direct_url: string;
+  created_at: string;
+}
+
 @Component({
   selector: 'app-admin',
   templateUrl: './admin.html',
@@ -70,12 +84,13 @@ export class AdminComponent implements OnInit, OnDestroy {
   protected loginError = '';
   protected isLoading = false;
   protected isLoggedIn = false;
-  protected activeTab: 'rsvp' | 'wishes' | 'gallery' | 'nasheed' | 'weddings' = 'rsvp';
+  protected activeTab: 'rsvp' | 'wishes' | 'gallery' | 'nasheed' | 'weddings' | 'memories' = 'rsvp';
   protected searchRsvp = '';
   protected searchWish = '';
   protected searchGallery = '';
   protected searchNasheed = '';
   protected searchWeddings = '';
+  protected searchMemories = '';
   protected searchTerm = '';
   protected pageSize = 5;
   protected rsvpPage = 1;
@@ -83,17 +98,20 @@ export class AdminComponent implements OnInit, OnDestroy {
   protected galleryPage = 1;
   protected nasheedPage = 1;
   protected weddingsPage = 1;
+  protected memoriesPage = 1;
   protected selectedRsvpId: string | null = null;
   protected selectedWishId: string | null = null;
   protected selectedGalleryId: string | null = null;
   protected selectedNasheedId: string | null = null;
   protected selectedWeddingId: string | null = null;
+  protected selectedMemoryId: string | null = null;
 
   protected rsvpRows: RsvpRow[] = [];
   protected wishRows: WishRow[] = [];
   protected galleryRows: GalleryRow[] = [];
   protected nasheedRows: NasheedRow[] = [];
   protected weddingRows: WeddingRow[] = [];
+  protected memoryRows: GuestMemoryAdminRow[] = [];
   protected likeCounts = new Map<string, number>();
 
   protected expandedRsvpId: string | null = null;
@@ -125,6 +143,7 @@ export class AdminComponent implements OnInit, OnDestroy {
   protected editingNasheed: NasheedRow | null = null;
   protected editingWedding: WeddingRow | null = null;
   protected viewingWedding: WeddingRow | null = null;
+  protected viewingMemory: { type: 'image' | 'video'; url: string | SafeResourceUrl } | null = null;
   protected isNasheedDragOver = false;
   protected playingNasheedId: string | null = null;
   protected audioPreview: HTMLAudioElement | null = null;
@@ -146,6 +165,8 @@ export class AdminComponent implements OnInit, OnDestroy {
   private readonly inactivityWarningLeadMs = 30_000;
   private readonly activityEvents: Array<keyof WindowEventMap> = ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'];
   private activityListenersAttached = false;
+
+  constructor(private sanitizer: DomSanitizer) {}
 
   ngOnInit(): void {
     if (this.supabaseUrl.startsWith('http') && this.supabaseAnonKey.length > 20 && typeof supabase !== 'undefined') {
@@ -215,6 +236,7 @@ export class AdminComponent implements OnInit, OnDestroy {
       this.galleryRows = [];
       this.nasheedRows = [];
       this.weddingRows = [];
+      this.memoryRows = [];
       this.detachActivityListeners();
       this.clearInactivityTimer();
       this.clearWarningTimer();
@@ -230,7 +252,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     });
   }
 
-  protected switchTab(tab: 'rsvp' | 'wishes' | 'gallery' | 'nasheed' | 'weddings'): void {
+  protected switchTab(tab: 'rsvp' | 'wishes' | 'gallery' | 'nasheed' | 'weddings' | 'memories'): void {
     if (this.actionLoading) {
       return;
     }
@@ -248,7 +270,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     this.applyTabChange(tab);
   }
 
-  protected selectRow(type: 'rsvp' | 'wishes' | 'gallery' | 'nasheed' | 'weddings', id: string): void {
+  protected selectRow(type: 'rsvp' | 'wishes' | 'gallery' | 'nasheed' | 'weddings' | 'memories', id: string): void {
     if (type === 'rsvp') {
       this.selectedRsvpId = id;
     } else if (type === 'wishes') {
@@ -257,8 +279,10 @@ export class AdminComponent implements OnInit, OnDestroy {
       this.selectedGalleryId = id;
     } else if (type === 'nasheed') {
       this.selectedNasheedId = id;
-    } else {
+    } else if (type === 'weddings') {
       this.selectedWeddingId = id;
+    } else {
+      this.selectedMemoryId = id;
     }
   }
 
@@ -276,9 +300,12 @@ export class AdminComponent implements OnInit, OnDestroy {
     } else if (this.activeTab === 'nasheed') {
       this.searchNasheed = value;
       this.nasheedPage = 1;
-    } else {
+    } else if (this.activeTab === 'weddings') {
       this.searchWeddings = value;
       this.weddingsPage = 1;
+    } else {
+      this.searchMemories = value;
+      this.memoriesPage = 1;
     }
   }
 
@@ -339,6 +366,22 @@ export class AdminComponent implements OnInit, OnDestroy {
     );
   }
 
+  protected get filteredMemoryRows(): GuestMemoryAdminRow[] {
+    const term = this.searchMemories.trim().toLowerCase();
+    if (!term) {
+      return this.memoryRows;
+    }
+    return this.memoryRows.filter((row) =>
+      [
+        row.wedding_slug,
+        row.caption ?? '',
+        row.media_type,
+        row.file_extension ?? '',
+        row.drive_file_id
+      ].some((value) => value.toLowerCase().includes(term))
+    );
+  }
+
   protected get pagedRsvpRows(): RsvpRow[] {
     return this.paginate(this.filteredRsvpRows, this.rsvpPage);
   }
@@ -357,6 +400,10 @@ export class AdminComponent implements OnInit, OnDestroy {
 
   protected get pagedWeddingRows(): WeddingRow[] {
     return this.paginate(this.filteredWeddingRows, this.weddingsPage);
+  }
+
+  protected get pagedMemoryRows(): GuestMemoryAdminRow[] {
+    return this.paginate(this.filteredMemoryRows, this.memoriesPage);
   }
 
   protected get rsvpTotalPages(): number {
@@ -379,7 +426,11 @@ export class AdminComponent implements OnInit, OnDestroy {
     return this.totalPages(this.filteredWeddingRows.length);
   }
 
-  protected nextPage(type: 'rsvp' | 'wishes' | 'gallery' | 'nasheed' | 'weddings'): void {
+  protected get memoriesTotalPages(): number {
+    return this.totalPages(this.filteredMemoryRows.length);
+  }
+
+  protected nextPage(type: 'rsvp' | 'wishes' | 'gallery' | 'nasheed' | 'weddings' | 'memories'): void {
     if (type === 'rsvp' && this.rsvpPage < this.rsvpTotalPages) {
       this.rsvpPage += 1;
     }
@@ -395,9 +446,12 @@ export class AdminComponent implements OnInit, OnDestroy {
     if (type === 'weddings' && this.weddingsPage < this.weddingsTotalPages) {
       this.weddingsPage += 1;
     }
+    if (type === 'memories' && this.memoriesPage < this.memoriesTotalPages) {
+      this.memoriesPage += 1;
+    }
   }
 
-  protected prevPage(type: 'rsvp' | 'wishes' | 'gallery' | 'nasheed' | 'weddings'): void {
+  protected prevPage(type: 'rsvp' | 'wishes' | 'gallery' | 'nasheed' | 'weddings' | 'memories'): void {
     if (type === 'rsvp' && this.rsvpPage > 1) {
       this.rsvpPage -= 1;
     }
@@ -412,6 +466,9 @@ export class AdminComponent implements OnInit, OnDestroy {
     }
     if (type === 'weddings' && this.weddingsPage > 1) {
       this.weddingsPage -= 1;
+    }
+    if (type === 'memories' && this.memoriesPage > 1) {
+      this.memoriesPage -= 1;
     }
   }
 
@@ -602,6 +659,50 @@ export class AdminComponent implements OnInit, OnDestroy {
       await this.loadNasheeds();
       this.showToast('Nasheed deleted (table + storage).', 'success');
     });
+  }
+
+  protected openMemoryPreview(row: GuestMemoryAdminRow): void {
+    const type: 'image' | 'video' = this.isMemoryVideo(row) ? 'video' : 'image';
+    const url = this.getMemoryPreviewUrl(row);
+    this.viewingMemory = {
+      type,
+      url: type === 'video' ? this.sanitizer.bypassSecurityTrustResourceUrl(url) : url
+    };
+  }
+
+  protected closeMemoryPreview(): void {
+    this.viewingMemory = null;
+  }
+
+  protected async deleteMemory(row: GuestMemoryAdminRow): Promise<void> {
+    if (!this.supabaseClient) {
+      return;
+    }
+    this.openConfirm('Padam memori ini dari Google Drive dan jadual?', async () => {
+      const removed = await this.deleteGoogleDriveFile(row.drive_file_id);
+      if (!removed) {
+        this.showToast('Failed to remove file from Google Drive.', 'error');
+        return;
+      }
+      await this.supabaseClient.from('guest_memories').delete().eq('id', row.id);
+      await this.loadGuestMemories();
+      this.showToast('Memory deleted (table + Google Drive).', 'success');
+    });
+  }
+
+  protected getMemoryPreviewUrl(row: GuestMemoryAdminRow): string {
+    if (this.isMemoryVideo(row)) {
+      return `https://drive.google.com/file/d/${encodeURIComponent(row.drive_file_id)}/preview`;
+    }
+    return `https://drive.google.com/thumbnail?id=${encodeURIComponent(row.drive_file_id)}&sz=w2000`;
+  }
+
+  protected getMemoryThumbnailUrl(row: GuestMemoryAdminRow): string {
+    return `https://drive.google.com/thumbnail?id=${encodeURIComponent(row.drive_file_id)}&sz=w300`;
+  }
+
+  protected isMemoryVideo(row: GuestMemoryAdminRow): boolean {
+    return String(row.media_type || '').toLowerCase() === 'video';
   }
 
   protected async createNasheed(): Promise<void> {
@@ -1030,7 +1131,8 @@ export class AdminComponent implements OnInit, OnDestroy {
       this.loadLikeCounts(),
       this.loadGallery(),
       this.loadNasheeds(),
-      this.loadWeddings()
+      this.loadWeddings(),
+      this.loadGuestMemories()
     ]);
   }
 
@@ -1099,6 +1201,30 @@ export class AdminComponent implements OnInit, OnDestroy {
       .order('created_at', { ascending: false });
     this.weddingRows = data ?? [];
     this.weddingsPage = 1;
+  }
+
+  private async loadGuestMemories(): Promise<void> {
+    if (!this.supabaseClient) {
+      return;
+    }
+    const { data } = await this.supabaseClient
+      .from('guest_memories')
+      .select('id,wedding_id,caption,media_type,file_extension,drive_file_id,drive_view_url,drive_direct_url,created_at,weddings(slug)')
+      .order('created_at', { ascending: false });
+
+    this.memoryRows = (data ?? []).map((row: any) => ({
+      id: row.id,
+      wedding_id: row.wedding_id ?? null,
+      wedding_slug: String(row.weddings?.slug ?? '-'),
+      caption: row.caption ?? null,
+      media_type: row.media_type === 'video' ? 'video' : 'image',
+      file_extension: row.file_extension ?? null,
+      drive_file_id: String(row.drive_file_id ?? ''),
+      drive_view_url: String(row.drive_view_url ?? ''),
+      drive_direct_url: String(row.drive_direct_url ?? ''),
+      created_at: row.created_at ?? new Date().toISOString()
+    }));
+    this.memoriesPage = 1;
   }
 
   private async loadLikeCounts(): Promise<void> {
@@ -1385,6 +1511,38 @@ export class AdminComponent implements OnInit, OnDestroy {
     }
   }
 
+  private async deleteGoogleDriveFile(fileId: string): Promise<boolean> {
+    if (!this.supabaseClient) {
+      return false;
+    }
+    const cleanId = String(fileId || '').trim();
+    if (!cleanId) {
+      return false;
+    }
+    try {
+      const { data: sessionData } = await this.supabaseClient.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) {
+        return false;
+      }
+
+      const response = await fetch('/api/google/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ fileId: cleanId })
+      });
+      if (!response.ok) {
+        return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   private async storageObjectExists(bucket: string, path: string): Promise<boolean> {
     if (!this.supabaseClient) {
       return false;
@@ -1428,10 +1586,13 @@ export class AdminComponent implements OnInit, OnDestroy {
     if (this.activeTab === 'nasheed') {
       return this.searchNasheed;
     }
-    return this.searchWeddings;
+    if (this.activeTab === 'weddings') {
+      return this.searchWeddings;
+    }
+    return this.searchMemories;
   }
 
-  private applyTabChange(tab: 'rsvp' | 'wishes' | 'gallery' | 'nasheed' | 'weddings'): void {
+  private applyTabChange(tab: 'rsvp' | 'wishes' | 'gallery' | 'nasheed' | 'weddings' | 'memories'): void {
     this.activeTab = tab;
     this.searchTerm = this.currentSearchValue();
   }
@@ -1459,6 +1620,8 @@ export class AdminComponent implements OnInit, OnDestroy {
     this.selectedGalleryId = null;
     this.selectedNasheedId = null;
     this.selectedWeddingId = null;
+    this.selectedMemoryId = null;
+    this.viewingMemory = null;
   }
 
   private sanitizeFilename(name: string): string {

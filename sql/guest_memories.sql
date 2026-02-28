@@ -32,9 +32,23 @@ for select
 to anon
 using (status = 'approved');
 
+drop policy if exists "guest_memories admin read" on public.guest_memories;
+create policy "guest_memories admin read"
+on public.guest_memories
+for select
+to authenticated
+using (true);
+
 drop policy if exists "guest_memories insert anon" on public.guest_memories;
 create policy "guest_memories insert anon"
 on public.guest_memories
 for insert
 to anon
 with check (true);
+
+drop policy if exists "guest_memories admin delete" on public.guest_memories;
+create policy "guest_memories admin delete"
+on public.guest_memories
+for delete
+to authenticated
+using (true);
