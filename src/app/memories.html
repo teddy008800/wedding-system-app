@@ -105,6 +105,16 @@
     </div>
   </div>
 
+  <div class="fixed inset-0 z-[75] grid place-items-center bg-slate-900/45 backdrop-blur-sm" *ngIf="uploadErrorModal.open">
+    <div class="w-[min(92vw,420px)] rounded-2xl border border-rose-200/60 bg-white p-6 shadow-[0_24px_40px_rgba(15,23,42,0.25)]">
+      <div class="text-lg font-semibold text-slate-900">Upload Error</div>
+      <p class="mt-2 text-sm text-slate-600">{{ uploadErrorModal.message }}</p>
+      <div class="mt-5 flex justify-end">
+        <button class="btn-outline text-slate-900" type="button" (click)="closeUploadErrorModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <div class="fixed inset-0 z-[80] grid place-items-center overflow-hidden bg-slate-900/75" *ngIf="previewModal.open">
     <div class="w-[min(96vw,980px)] h-[min(92vh,860px)] rounded-2xl bg-white border border-rose-200/60 p-3 md:p-4 flex flex-col overflow-hidden">
       <div class="flex justify-end mb-2">

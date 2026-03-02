@@ -111,7 +111,10 @@ export default async function handler(req, res) {
     const fileBuffer = Buffer.from(base64Data, 'base64');
     const maxBytes = maxSizeMb * 1024 * 1024;
     if (!fileBuffer.length || fileBuffer.length > maxBytes) {
-      return res.status(400).json({ error: `File too large. Max ${maxSizeMb}MB` });
+      return res.status(400).json({
+        error: 'File too large',
+        maxSizeMb
+      });
     }
 
     const accessToken = await getAccessTokenFromRefreshToken(clientId, clientSecret, refreshToken);

@@ -35,6 +35,10 @@ export class MemoriesComponent implements OnInit {
   protected actionLoading = false;
   protected actionLoadingText = 'Processing...';
   protected uploadPopup = '';
+  protected uploadErrorModal = {
+    open: false,
+    message: ''
+  };
   protected previewModal = {
     open: false,
     type: '' as 'image' | 'video' | '',
@@ -151,7 +155,12 @@ export class MemoriesComponent implements OnInit {
 
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload?.ok) {
-          this.showPopup(payload?.error || 'Upload to Google Drive failed.');
+          const maxSizeMb = Number(payload?.maxSizeMb || 0);
+          if (String(payload?.error || '').toLowerCase().includes('file too large') && maxSizeMb > 0) {
+            this.openUploadErrorModal(`File exceeds maximum size (${maxSizeMb}MB).`);
+          } else {
+            this.showPopup(payload?.error || 'Upload to Google Drive failed.');
+          }
           return;
         }
 
@@ -238,6 +247,14 @@ export class MemoriesComponent implements OnInit {
     this.popupTimer = window.setTimeout(() => {
       this.uploadPopup = '';
     }, 2600);
+  }
+
+  protected closeUploadErrorModal(): void {
+    this.uploadErrorModal = { open: false, message: '' };
+  }
+
+  private openUploadErrorModal(message: string): void {
+    this.uploadErrorModal = { open: true, message };
   }
 
   protected openPreview(type: 'image' | 'video', url: string): void {
