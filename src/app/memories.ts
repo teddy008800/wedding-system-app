@@ -61,6 +61,7 @@ export class MemoriesComponent implements OnInit {
   private readonly allowedVideoExtensions = new Set([
     'mp4', 'mov', 'm4v', 'webm', 'ogg', 'ogv', 'avi', 'mkv'
   ]);
+  private readonly guestUploadMaxMb = 25;
 
   constructor(private route: ActivatedRoute, private router: Router, private sanitizer: DomSanitizer) {}
 
@@ -155,6 +156,10 @@ export class MemoriesComponent implements OnInit {
 
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload?.ok) {
+          if (response.status === 413) {
+            this.openUploadErrorModal(`File exceeds maximum size (${this.guestUploadMaxMb}MB).`);
+            return;
+          }
           const maxSizeMb = Number(payload?.maxSizeMb || 0);
           if (String(payload?.error || '').toLowerCase().includes('file too large') && maxSizeMb > 0) {
             this.openUploadErrorModal(`File exceeds maximum size (${maxSizeMb}MB).`);
