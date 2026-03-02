@@ -62,11 +62,12 @@ export class MemoriesComponent implements OnInit {
   private readonly allowedVideoExtensions = new Set([
     'mp4', 'mov', 'm4v', 'webm', 'ogg', 'ogv', 'avi', 'mkv'
   ]);
-  private readonly guestUploadMaxMb = Number(environment.guestUploadMaxMb || 25);
+  private guestUploadMaxMb = Number(environment.guestUploadMaxMb || 25);
 
   constructor(private route: ActivatedRoute, private router: Router, private sanitizer: DomSanitizer) {}
 
   ngOnInit(): void {
+    void this.loadPublicConfig();
     if (this.supabaseUrl.startsWith('http') && this.supabaseAnonKey.length > 20 && typeof supabase !== 'undefined') {
       this.supabaseClient = supabase.createClient(this.supabaseUrl, this.supabaseAnonKey, {
         auth: {
@@ -282,6 +283,22 @@ export class MemoriesComponent implements OnInit {
     const input = this.memoriesFileInput?.nativeElement;
     if (input) {
       input.value = '';
+    }
+  }
+
+  private async loadPublicConfig(): Promise<void> {
+    try {
+      const response = await fetch('/api/public-config', { method: 'GET' });
+      if (!response.ok) {
+        return;
+      }
+      const payload = await response.json().catch(() => ({}));
+      const maxMb = Number(payload?.guestUploadMaxMb);
+      if (Number.isFinite(maxMb) && maxMb > 0) {
+        this.guestUploadMaxMb = maxMb;
+      }
+    } catch {
+      // keep local default
     }
   }
 
