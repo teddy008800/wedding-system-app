@@ -35,6 +35,8 @@ export class MemoriesComponent implements OnInit {
   protected rows: GuestMemoryRow[] = [];
   protected actionLoading = false;
   protected actionLoadingText = 'Processing...';
+  protected uploadProgressPercent = 0;
+  protected uploadProgressDetail = '';
   protected uploadPopup = '';
   protected uploadErrorModal = {
     open: false,
@@ -139,6 +141,8 @@ export class MemoriesComponent implements OnInit {
       return;
     }
 
+    this.uploadProgressPercent = 0;
+    this.uploadProgressDetail = '';
     await this.runWithLock('Uploading memory...', async () => {
       if (!this.supabaseClient) {
         this.showPopup('Data service unavailable.');
@@ -148,6 +152,8 @@ export class MemoriesComponent implements OnInit {
 
       for (let index = 0; index < this.uploadForm.files.length; index += 1) {
         const file = this.uploadForm.files[index];
+        this.uploadProgressPercent = 0;
+        this.uploadProgressDetail = `File ${index + 1}/${this.uploadForm.files.length}`;
         if (!this.validateSelectedFiles([file])) {
           this.clearUploadInput();
           return;
@@ -196,7 +202,16 @@ export class MemoriesComponent implements OnInit {
           return;
         }
 
-        const uploadResult = await this.uploadFileResumable(file, startPayload.uploadUrl);
+        const uploadResult = await this.uploadFileResumable(
+          file,
+          startPayload.uploadUrl,
+          (uploadedBytes, totalBytes, chunkIndex, totalChunks) => {
+            const percent = Math.min(100, Math.max(0, Math.round((uploadedBytes / totalBytes) * 100)));
+            this.uploadProgressPercent = percent;
+            this.uploadProgressDetail = `File ${index + 1}/${this.uploadForm.files.length} · Chunk ${chunkIndex}/${totalChunks}`;
+            this.actionLoadingText = `Uploading ${index + 1}/${this.uploadForm.files.length} (${percent}%)`;
+          }
+        );
         if (!uploadResult?.fileId) {
           this.showPopup('Upload to Google Drive failed.');
           this.clearUploadInput();
@@ -239,9 +254,12 @@ export class MemoriesComponent implements OnInit {
 
       this.clearUploadInput();
       this.uploadForm.caption = '';
+      this.uploadProgressPercent = 100;
       this.showPopup('Memory uploaded successfully.');
       await this.loadMemories();
     });
+    this.uploadProgressPercent = 0;
+    this.uploadProgressDetail = '';
   }
 
   private async loadWeddingAndMemories(): Promise<void> {
@@ -426,13 +444,17 @@ export class MemoriesComponent implements OnInit {
 
   private async uploadFileResumable(
     file: File,
-    uploadUrl: string
+    uploadUrl: string,
+    onProgress?: (uploadedBytes: number, totalBytes: number, chunkIndex: number, totalChunks: number) => void
   ): Promise<{ fileId: string } | null> {
     const chunkSize = 2 * 1024 * 1024;
     let start = 0;
     const total = file.size;
+    const totalChunks = Math.max(1, Math.ceil(total / chunkSize));
+    let chunkIndex = 0;
 
     while (start < total) {
+      chunkIndex += 1;
       const endExclusive = Math.min(start + chunkSize, total);
       const chunk = file.slice(start, endExclusive);
       const base64Data = await this.blobToBase64(chunk);
@@ -458,12 +480,14 @@ export class MemoriesComponent implements OnInit {
       if (payload?.resumable) {
         const nextStart = Number(payload?.nextStart);
         start = Number.isFinite(nextStart) && nextStart > start ? nextStart : endExclusive;
+        onProgress?.(start, total, chunkIndex, totalChunks);
         continue;
       }
 
       if (!payload?.fileId) {
         return null;
       }
+      onProgress?.(total, total, totalChunks, totalChunks);
       return { fileId: String(payload.fileId) };
     }
 

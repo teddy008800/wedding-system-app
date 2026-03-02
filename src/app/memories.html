@@ -99,9 +99,21 @@
   </div>
 
   <div class="fixed inset-0 z-[70] grid place-items-center bg-slate-900/45 backdrop-blur-sm" *ngIf="actionLoading">
-    <div class="rounded-2xl border border-rose-200/70 bg-white px-6 py-4 text-center shadow-xl">
+    <div class="w-[min(92vw,420px)] rounded-2xl border border-rose-200/70 bg-white px-6 py-4 text-center shadow-xl">
       <div class="h-6 w-6 mx-auto mb-2 animate-spin rounded-full border-2 border-rose-200 border-t-rose-500"></div>
       <div class="text-sm font-semibold text-slate-900">{{ actionLoadingText }}</div>
+      <div class="mt-3" *ngIf="uploadProgressPercent > 0">
+        <div class="h-2 w-full overflow-hidden rounded-full bg-rose-100">
+          <div
+            class="h-full rounded-full bg-rose-500 transition-all duration-200"
+            [style.width.%]="uploadProgressPercent"
+          ></div>
+        </div>
+        <div class="mt-2 text-xs text-slate-600">
+          {{ uploadProgressPercent }}%
+          <span *ngIf="uploadProgressDetail">· {{ uploadProgressDetail }}</span>
+        </div>
+      </div>
     </div>
   </div>
 
