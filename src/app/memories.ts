@@ -428,48 +428,58 @@ export class MemoriesComponent implements OnInit {
     file: File,
     uploadUrl: string
   ): Promise<{ fileId: string } | null> {
-    const chunkSize = 8 * 1024 * 1024;
+    const chunkSize = 2 * 1024 * 1024;
     let start = 0;
     const total = file.size;
 
     while (start < total) {
       const endExclusive = Math.min(start + chunkSize, total);
       const chunk = file.slice(start, endExclusive);
-      const contentRange = `bytes ${start}-${endExclusive - 1}/${total}`;
-      const response = await fetch(uploadUrl, {
-        method: 'PUT',
+      const base64Data = await this.blobToBase64(chunk);
+      const response = await fetch('/api/google/resumable-chunk', {
+        method: 'POST',
         headers: {
-          'Content-Length': String(chunk.size),
-          'Content-Range': contentRange
+          'Content-Type': 'application/json'
         },
-        body: chunk
+        body: JSON.stringify({
+          uploadUrl,
+          base64Data,
+          start,
+          end: endExclusive - 1,
+          total
+        })
       });
-
-      if (response.status === 308) {
-        const range = response.headers.get('Range');
-        if (range) {
-          const match = range.match(/bytes=0-(\d+)/i);
-          if (match?.[1]) {
-            start = Number(match[1]) + 1;
-            continue;
-          }
-        }
-        start = endExclusive;
-        continue;
-      }
 
       if (!response.ok) {
         return null;
       }
 
       const payload = await response.json().catch(() => ({}));
-      if (!payload?.id) {
+      if (payload?.resumable) {
+        const nextStart = Number(payload?.nextStart);
+        start = Number.isFinite(nextStart) && nextStart > start ? nextStart : endExclusive;
+        continue;
+      }
+
+      if (!payload?.fileId) {
         return null;
       }
-      return { fileId: String(payload.id) };
+      return { fileId: String(payload.fileId) };
     }
 
     return null;
+  }
+
+  private async blobToBase64(blob: Blob): Promise<string> {
+    const buffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, i + chunkSize);
+      binary += String.fromCharCode(...chunk);
+    }
+    return btoa(binary);
   }
 
   private getFileExtension(name: string): string {
