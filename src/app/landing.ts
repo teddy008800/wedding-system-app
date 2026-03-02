@@ -788,7 +788,7 @@ export class LandingComponent implements OnInit, OnDestroy {
     this.dressCode = data.dress_code || this.defaultWeddingState.dressCode;
     this.weddingTentative = Array.isArray(data.wedding_tentative)
       ? data.wedding_tentative.map((item: any) => ({
-          time: String(item?.time ?? ''),
+          time: this.formatTentativeTime(String(item?.time ?? '')),
           title: String(item?.title ?? item?.activity ?? '')
         }))
       : [];
@@ -919,6 +919,25 @@ export class LandingComponent implements OnInit, OnDestroy {
       month: 'long',
       year: 'numeric'
     });
+  }
+
+  private formatTentativeTime(value: string): string {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return '';
+    }
+    const hhmmMatch = raw.match(/^(\d{1,2}):(\d{2})$/);
+    if (!hhmmMatch) {
+      return raw;
+    }
+    const hour24 = Number(hhmmMatch[1]);
+    const minute = Number(hhmmMatch[2]);
+    if (!Number.isFinite(hour24) || !Number.isFinite(minute) || hour24 < 0 || hour24 > 23 || minute < 0 || minute > 59) {
+      return raw;
+    }
+    const period = hour24 >= 12 ? 'PM' : 'AM';
+    const hour12 = hour24 % 12 || 12;
+    return `${hour12}:${String(minute).padStart(2, '0')} ${period}`;
   }
 
   private setCountdownTargetFromWeddingDate(date: Date | null): void {
