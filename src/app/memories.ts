@@ -63,7 +63,6 @@ export class MemoriesComponent implements OnInit {
     'mp4', 'mov', 'm4v', 'webm', 'ogg', 'ogv', 'avi', 'mkv'
   ]);
   private guestUploadMaxMb = Number(environment.guestUploadMaxMb || 25);
-  private guestUploadTransportMaxMb = Number(environment.guestUploadTransportMaxMb || 4);
 
   constructor(private route: ActivatedRoute, private router: Router, private sanitizer: DomSanitizer) {}
 
@@ -170,30 +169,48 @@ export class MemoriesComponent implements OnInit {
         }
 
         this.actionLoadingText = `Uploading ${index + 1}/${this.uploadForm.files.length}...`;
-        const base64Data = await this.fileToBase64(file);
-        const response = await fetch('/api/google/upload', {
+        const startResponse = await fetch('/api/google/resumable-start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             fileName: `${Date.now()}-${file.name}`,
             mimeType: file.type,
-            base64Data
+            fileSize: file.size
           })
         });
 
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload?.ok) {
-          if (response.status === 413) {
+        const startPayload = await startResponse.json().catch(() => ({}));
+        if (!startResponse.ok || !startPayload?.ok || !startPayload?.uploadUrl) {
+          if (startResponse.status === 413) {
             this.openUploadErrorModal(`File exceeds maximum size (${this.guestUploadMaxMb}MB).`);
             this.clearUploadInput();
             return;
           }
-          const maxSizeMb = Number(payload?.maxSizeMb || 0);
-          if (String(payload?.error || '').toLowerCase().includes('file too large') && maxSizeMb > 0) {
+          const maxSizeMb = Number(startPayload?.maxSizeMb || 0);
+          if (String(startPayload?.error || '').toLowerCase().includes('file too large') && maxSizeMb > 0) {
             this.openUploadErrorModal(`File exceeds maximum size (${maxSizeMb}MB).`);
           } else {
-            this.showPopup(payload?.error || 'Upload to Google Drive failed.');
+            this.showPopup(startPayload?.error || 'Failed to start upload.');
           }
+          this.clearUploadInput();
+          return;
+        }
+
+        const uploadResult = await this.uploadFileResumable(file, startPayload.uploadUrl);
+        if (!uploadResult?.fileId) {
+          this.showPopup('Upload to Google Drive failed.');
+          this.clearUploadInput();
+          return;
+        }
+
+        const publishResponse = await fetch('/api/google/file-publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileId: uploadResult.fileId })
+        });
+        const publishPayload = await publishResponse.json().catch(() => ({}));
+        if (!publishResponse.ok || !publishPayload?.ok) {
+          this.showPopup(publishPayload?.error || 'Upload succeeded but failed to publish file.');
           this.clearUploadInput();
           return;
         }
@@ -205,10 +222,10 @@ export class MemoriesComponent implements OnInit {
           caption: this.uploadForm.caption.trim() || null,
           media_type: mediaType,
           file_extension: ext || null,
-          drive_file_id: payload.fileId,
-          drive_view_url: payload.webViewLink,
-          drive_direct_url: payload.directUrl,
-          mime_type: file.type,
+          drive_file_id: publishPayload.fileId,
+          drive_view_url: publishPayload.webViewLink,
+          drive_direct_url: publishPayload.directUrl,
+          mime_type: publishPayload.mimeType || file.type,
           status: 'approved',
           created_at: new Date().toISOString()
         });
@@ -312,10 +329,6 @@ export class MemoriesComponent implements OnInit {
       if (Number.isFinite(maxMb) && maxMb > 0) {
         this.guestUploadMaxMb = maxMb;
       }
-      const transportMb = Number(payload?.guestUploadTransportMaxMb);
-      if (Number.isFinite(transportMb) && transportMb > 0) {
-        this.guestUploadTransportMaxMb = transportMb;
-      }
     } catch {
       // keep local default
     }
@@ -326,19 +339,9 @@ export class MemoriesComponent implements OnInit {
       return true;
     }
     const appLimitBytes = this.guestUploadMaxMb * 1024 * 1024;
-    const transportLimitBytes = this.guestUploadTransportMaxMb * 1024 * 1024;
     for (const file of files) {
       if (file.size > appLimitBytes) {
         this.openUploadErrorModal(`File exceeds maximum size (${this.guestUploadMaxMb}MB).`);
-        return false;
-      }
-      // Request body contains base64 JSON; estimate payload expansion to avoid 413 on Vercel.
-      const estimatedPayloadBytes = Math.ceil(file.size / 3) * 4 + 2048;
-      if (estimatedPayloadBytes > transportLimitBytes) {
-        const rawSafeMb = Math.max(1, Math.floor((transportLimitBytes * 0.75) / (1024 * 1024)));
-        this.openUploadErrorModal(
-          `File is too large for web upload channel. Current safe limit is about ${rawSafeMb}MB per file.`
-        );
         return false;
       }
     }
@@ -421,16 +424,52 @@ export class MemoriesComponent implements OnInit {
     }
   }
 
-  private async fileToBase64(file: File): Promise<string> {
-    const buffer = await file.arrayBuffer();
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      const chunk = bytes.subarray(i, i + chunkSize);
-      binary += String.fromCharCode(...chunk);
+  private async uploadFileResumable(
+    file: File,
+    uploadUrl: string
+  ): Promise<{ fileId: string } | null> {
+    const chunkSize = 8 * 1024 * 1024;
+    let start = 0;
+    const total = file.size;
+
+    while (start < total) {
+      const endExclusive = Math.min(start + chunkSize, total);
+      const chunk = file.slice(start, endExclusive);
+      const contentRange = `bytes ${start}-${endExclusive - 1}/${total}`;
+      const response = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Length': String(chunk.size),
+          'Content-Range': contentRange
+        },
+        body: chunk
+      });
+
+      if (response.status === 308) {
+        const range = response.headers.get('Range');
+        if (range) {
+          const match = range.match(/bytes=0-(\d+)/i);
+          if (match?.[1]) {
+            start = Number(match[1]) + 1;
+            continue;
+          }
+        }
+        start = endExclusive;
+        continue;
+      }
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const payload = await response.json().catch(() => ({}));
+      if (!payload?.id) {
+        return null;
+      }
+      return { fileId: String(payload.id) };
     }
-    return btoa(binary);
+
+    return null;
   }
 
   private getFileExtension(name: string): string {
