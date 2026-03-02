@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { environment } from '../environments/environment';
@@ -28,6 +28,7 @@ interface GuestMemoryRow {
   standalone: false
 })
 export class MemoriesComponent implements OnInit {
+  @ViewChild('memoriesFileInput') memoriesFileInput?: ElementRef<HTMLInputElement>;
   protected slug = '';
   protected weddingLabel = 'Our Memories';
   protected weddingDate = '';
@@ -61,7 +62,7 @@ export class MemoriesComponent implements OnInit {
   private readonly allowedVideoExtensions = new Set([
     'mp4', 'mov', 'm4v', 'webm', 'ogg', 'ogv', 'avi', 'mkv'
   ]);
-  private readonly guestUploadMaxMb = 25;
+  private readonly guestUploadMaxMb = Number(environment.guestUploadMaxMb || 25);
 
   constructor(private route: ActivatedRoute, private router: Router, private sanitizer: DomSanitizer) {}
 
@@ -118,27 +119,37 @@ export class MemoriesComponent implements OnInit {
     }
     if (!this.currentWeddingId) {
       this.showPopup('Wedding data not found.');
+      this.clearUploadInput();
       return;
     }
     if (!this.uploadForm.files.length) {
       this.showPopup('Please select at least one file.');
+      this.clearUploadInput();
       return;
     }
 
     await this.runWithLock('Uploading memory...', async () => {
       if (!this.supabaseClient) {
         this.showPopup('Data service unavailable.');
+        this.clearUploadInput();
         return;
       }
 
       for (let index = 0; index < this.uploadForm.files.length; index += 1) {
         const file = this.uploadForm.files[index];
+        const maxBytes = this.guestUploadMaxMb * 1024 * 1024;
+        if (file.size > maxBytes) {
+          this.openUploadErrorModal(`File exceeds maximum size (${this.guestUploadMaxMb}MB).`);
+          this.clearUploadInput();
+          return;
+        }
         const ext = this.getFileExtension(file.name);
         const mime = String(file.type || '').toLowerCase();
         const isImage = mime.startsWith('image/') || this.allowedImageExtensions.has(ext);
         const isVideo = mime.startsWith('video/') || this.allowedVideoExtensions.has(ext);
         if (!isImage && !isVideo) {
           this.showPopup(`Unsupported file type: ${file.name}`);
+          this.clearUploadInput();
           return;
         }
 
@@ -158,6 +169,7 @@ export class MemoriesComponent implements OnInit {
         if (!response.ok || !payload?.ok) {
           if (response.status === 413) {
             this.openUploadErrorModal(`File exceeds maximum size (${this.guestUploadMaxMb}MB).`);
+            this.clearUploadInput();
             return;
           }
           const maxSizeMb = Number(payload?.maxSizeMb || 0);
@@ -166,6 +178,7 @@ export class MemoriesComponent implements OnInit {
           } else {
             this.showPopup(payload?.error || 'Upload to Google Drive failed.');
           }
+          this.clearUploadInput();
           return;
         }
 
@@ -186,11 +199,13 @@ export class MemoriesComponent implements OnInit {
 
         if (error) {
           this.showPopup('Upload saved to Drive but failed to save metadata.');
+          this.clearUploadInput();
           return;
         }
       }
 
-      this.uploadForm = { caption: '', files: [] };
+      this.clearUploadInput();
+      this.uploadForm.caption = '';
       this.showPopup('Memory uploaded successfully.');
       await this.loadMemories();
     });
@@ -260,6 +275,14 @@ export class MemoriesComponent implements OnInit {
 
   private openUploadErrorModal(message: string): void {
     this.uploadErrorModal = { open: true, message };
+  }
+
+  private clearUploadInput(): void {
+    this.uploadForm.files = [];
+    const input = this.memoriesFileInput?.nativeElement;
+    if (input) {
+      input.value = '';
+    }
   }
 
   protected openPreview(type: 'image' | 'video', url: string): void {
