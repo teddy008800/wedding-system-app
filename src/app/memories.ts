@@ -63,6 +63,7 @@ export class MemoriesComponent implements OnInit {
     'mp4', 'mov', 'm4v', 'webm', 'ogg', 'ogv', 'avi', 'mkv'
   ]);
   private guestUploadMaxMb = Number(environment.guestUploadMaxMb || 25);
+  private guestUploadTransportMaxMb = Number(environment.guestUploadTransportMaxMb || 4);
 
   constructor(private route: ActivatedRoute, private router: Router, private sanitizer: DomSanitizer) {}
 
@@ -90,7 +91,12 @@ export class MemoriesComponent implements OnInit {
 
   protected handleFileChange(event: Event): void {
     const input = event.target as HTMLInputElement;
-    this.uploadForm.files = input.files ? Array.from(input.files) : [];
+    const files = input.files ? Array.from(input.files) : [];
+    if (!this.validateSelectedFiles(files)) {
+      this.clearUploadInput();
+      return;
+    }
+    this.uploadForm.files = files;
   }
 
   protected openPicker(input: HTMLInputElement): void {
@@ -111,7 +117,12 @@ export class MemoriesComponent implements OnInit {
     event.preventDefault();
     this.isDragOver = false;
     const files = event.dataTransfer?.files;
-    this.uploadForm.files = files ? Array.from(files) : [];
+    const selected = files ? Array.from(files) : [];
+    if (!this.validateSelectedFiles(selected)) {
+      this.clearUploadInput();
+      return;
+    }
+    this.uploadForm.files = selected;
   }
 
   protected async submitMemory(): Promise<void> {
@@ -138,6 +149,10 @@ export class MemoriesComponent implements OnInit {
 
       for (let index = 0; index < this.uploadForm.files.length; index += 1) {
         const file = this.uploadForm.files[index];
+        if (!this.validateSelectedFiles([file])) {
+          this.clearUploadInput();
+          return;
+        }
         const maxBytes = this.guestUploadMaxMb * 1024 * 1024;
         if (file.size > maxBytes) {
           this.openUploadErrorModal(`File exceeds maximum size (${this.guestUploadMaxMb}MB).`);
@@ -297,9 +312,37 @@ export class MemoriesComponent implements OnInit {
       if (Number.isFinite(maxMb) && maxMb > 0) {
         this.guestUploadMaxMb = maxMb;
       }
+      const transportMb = Number(payload?.guestUploadTransportMaxMb);
+      if (Number.isFinite(transportMb) && transportMb > 0) {
+        this.guestUploadTransportMaxMb = transportMb;
+      }
     } catch {
       // keep local default
     }
+  }
+
+  private validateSelectedFiles(files: File[]): boolean {
+    if (!files.length) {
+      return true;
+    }
+    const appLimitBytes = this.guestUploadMaxMb * 1024 * 1024;
+    const transportLimitBytes = this.guestUploadTransportMaxMb * 1024 * 1024;
+    for (const file of files) {
+      if (file.size > appLimitBytes) {
+        this.openUploadErrorModal(`File exceeds maximum size (${this.guestUploadMaxMb}MB).`);
+        return false;
+      }
+      // Request body contains base64 JSON; estimate payload expansion to avoid 413 on Vercel.
+      const estimatedPayloadBytes = Math.ceil(file.size / 3) * 4 + 2048;
+      if (estimatedPayloadBytes > transportLimitBytes) {
+        const rawSafeMb = Math.max(1, Math.floor((transportLimitBytes * 0.75) / (1024 * 1024)));
+        this.openUploadErrorModal(
+          `File is too large for web upload channel. Current safe limit is about ${rawSafeMb}MB per file.`
+        );
+        return false;
+      }
+    }
+    return true;
   }
 
   protected openPreview(type: 'image' | 'video', url: string): void {
